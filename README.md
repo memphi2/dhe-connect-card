@@ -1,3 +1,4 @@
+<<<<<<< ours
 # DHE Connect Card
 
 HACS-kompatible Lovelace-Karte für die Integration [`memphi2/ha-dhe-connect`](https://github.com/memphi2/ha-dhe-connect).
@@ -16,10 +17,25 @@ HACS-kompatible Lovelace-Karte für die Integration [`memphi2/ha-dhe-connect`](h
 4. Home Assistant neu laden.
 
 ## Lovelace Beispiel
+=======
+# dhe-connect-card
+
+Initiale HACS-kompatible DHE Connect Card mit visueller Konfigurations-GUI.
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
+>>>>>>> theirs
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
 
 ```yaml
 type: custom:dhe-connect-card
 title: DHE Connect
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
 device_prefix: sensor.dhe_connect_wohnzimmer
 sections:
   - climate
@@ -49,3 +65,29 @@ entity_map:
 npm install
 npm run build
 ```
+=======
+device_prefix: sensor.dhe_connect
+show_unavailable: false
+```
+>>>>>>> theirs
+=======
+device_prefix: sensor.dhe_connect
+show_unavailable: false
+```
+>>>>>>> theirs
+=======
+device_prefix: sensor.dhe_connect
+show_unavailable: false
+```
+>>>>>>> theirs
+=======
+
+## Beispiel
+
+```yaml
+type: custom:dhe-connect-card
+title: DHE Connect
+device_prefix: sensor.dhe_connect
+show_unavailable: false
+```
+>>>>>>> theirs
