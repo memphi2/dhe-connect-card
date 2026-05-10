@@ -1,23 +1,12 @@
-const DEFAULT_MAP = {
-  climate: ["climate", "target_temperature", "current_temperature", "heating_active"],
-  weather: ["weather_current", "weather_icon", "weather_favorite", "weather_location"],
-  radio: ["radio_station", "radio_source", "radio_favorite", "radio_playing"],
-  energy: ["energy_consumption", "water_consumption", "co2_emission", "electricity_price"],
-  status: ["status", "error", "last_update"],
-};
-
 class DheConnectCard extends HTMLElement {
   setConfig(config) {
-    if (!config?.device_prefix) {
-      throw new Error("Bitte `device_prefix` in der Karten-Konfiguration setzen, z.B. `sensor.dhe_connect_wohnzimmer`.");
-    }
     this._config = {
       title: "DHE Connect",
+      device_prefix: "sensor.dhe_connect",
       show_unavailable: false,
-      sections: Object.keys(DEFAULT_MAP),
-      entity_map: DEFAULT_MAP,
       ...config,
     };
+    this.render();
   }
 
   set hass(hass) {
@@ -25,75 +14,17 @@ class DheConnectCard extends HTMLElement {
     this.render();
   }
 
-  getCardSize() {
-    return 6;
-  }
-
-  _normalizeEntityId(prefix, suffix) {
-    const [domain] = prefix.split(".");
-    const entityPart = prefix.slice(prefix.indexOf(".") + 1);
-    return `${domain}.${entityPart}_${suffix}`;
-  }
-
-  _entityRow(entityId) {
-    const stateObj = this._hass.states[entityId];
-    if (!stateObj && !this._config.show_unavailable) return "";
-
-    const name = stateObj?.attributes?.friendly_name ?? entityId;
-    const state = stateObj?.state ?? "nicht verfügbar";
-    const unit = stateObj?.attributes?.unit_of_measurement ?? "";
-
-    return `
-      <div class="row">
-        <div class="name">${name}</div>
-        <div class="value">${state}${unit ? ` ${unit}` : ""}</div>
-      </div>
-    `;
-  }
-
   render() {
-    if (!this._config || !this._hass) return;
-
+    if (!this._config) return;
+    this.innerHTML = "";
     const card = document.createElement("ha-card");
     card.header = this._config.title;
-
     const content = document.createElement("div");
-    content.className = "content";
-
-    for (const section of this._config.sections) {
-      const suffixes = this._config.entity_map[section] || [];
-      const rows = suffixes
-        .map((suffix) => this._normalizeEntityId(this._config.device_prefix, suffix))
-        .map((entityId) => this._entityRow(entityId))
-        .filter(Boolean)
-        .join("");
-
-      if (!rows) continue;
-
-      content.innerHTML += `
-        <div class="section">
-          <div class="section-title">${section}</div>
-          ${rows}
-        </div>
-      `;
-    }
-
-    content.innerHTML += `
-      <style>
-        .content { padding: 12px; }
-        .section { margin-bottom: 14px; border-bottom: 1px solid var(--divider-color); padding-bottom: 8px; }
-        .section:last-child { border-bottom: 0; }
-        .section-title { text-transform: uppercase; font-size: 12px; opacity: 0.75; margin-bottom: 8px; }
-        .row { display: flex; justify-content: space-between; gap: 10px; margin: 4px 0; }
-        .name { font-weight: 500; }
-        .value { opacity: 0.9; }
-      </style>
-    `;
-
-    card.innerHTML = "";
+    content.style.padding = "12px";
+    const p = document.createElement("p");
+    p.textContent = `Device Prefix: ${this._config.device_prefix}`;
+    content.appendChild(p);
     card.appendChild(content);
-
-    this.innerHTML = "";
     this.appendChild(card);
   }
 
@@ -102,15 +33,69 @@ class DheConnectCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { device_prefix: "sensor.dhe_connect" };
+    return { type: "custom:dhe-connect-card", device_prefix: "sensor.dhe_connect" };
+  }
+}
+
+class DheConnectCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = {
+      title: "DHE Connect",
+      device_prefix: "sensor.dhe_connect",
+      show_unavailable: false,
+      ...config,
+    };
+    this.render();
+  }
+
+  _updateValue(key, value) {
+    this._config = { ...this._config, [key]: value };
+    this.dispatchEvent(new CustomEvent("config-changed", {
+      detail: { config: this._config },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  render() {
+    if (!this._config) return;
+    this.innerHTML = "";
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <style>
+        .editor{display:grid;gap:12px;padding:8px 0}
+        .field{display:grid;gap:6px}
+        .field input[type=text]{padding:10px;border:1px solid var(--divider-color);border-radius:8px;background:var(--card-background-color);color:var(--primary-text-color)}
+      </style>
+      <div class="editor">
+        <div class="field"><label>Titel</label><input id="title" type="text"></div>
+        <div class="field"><label>Device Prefix</label><input id="device_prefix" type="text"></div>
+        <div class="field"><label><input id="show_unavailable" type="checkbox"> Nicht verfügbare Entitäten anzeigen</label></div>
+      </div>
+    `;
+
+    const title = root.querySelector("#title");
+    const prefix = root.querySelector("#device_prefix");
+    const show = root.querySelector("#show_unavailable");
+
+    title.value = this._config.title || "";
+    prefix.value = this._config.device_prefix || "";
+    show.checked = Boolean(this._config.show_unavailable);
+
+    title.addEventListener("change", (e) => this._updateValue("title", e.target.value));
+    prefix.addEventListener("change", (e) => this._updateValue("device_prefix", e.target.value));
+    show.addEventListener("change", (e) => this._updateValue("show_unavailable", e.target.checked));
+
+    this.appendChild(root);
   }
 }
 
 customElements.define("dhe-connect-card", DheConnectCard);
+customElements.define("dhe-connect-card-editor", DheConnectCardEditor);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "dhe-connect-card",
   name: "DHE Connect Card",
-  description: "HACS-kompatible Lovelace Karte für ha-dhe-connect.",
+  description: "Initiale GUI-Konfiguration für die DHE Connect Karte",
 });
