@@ -1,0 +1,13 @@
+{
+  "name": "dhe-connect-card",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/dhe-connect-card.js --bundle --format=esm --target=es2020 --outfile=dist/dhe-connect-card.js",
+    "validate:ha-hacs": "node scripts_validate.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.3"
+  }
+}
