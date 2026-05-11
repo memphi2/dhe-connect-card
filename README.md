@@ -1,93 +1,91 @@
-<<<<<<< ours
 # DHE Connect Card
 
-HACS-kompatible Lovelace-Karte für die Integration [`memphi2/ha-dhe-connect`](https://github.com/memphi2/ha-dhe-connect).
+Eine Lovelace Custom Card fuer die Home-Assistant-Integration
+[`memphi2/ha-dhe-connect`](https://github.com/memphi2/ha-dhe-connect).
 
-## Features
+Die Karte ist fuer die aktuelle Integration `stiebel_dhe_connect` gebaut. Sie
+nutzt den nativen Home-Assistant-Formular-Editor ueber `getConfigForm()` und
+kommt ohne separates Editor-Webcomponent aus.
 
-- Optimiert für die in `ha-dhe-connect` sichtbaren Bereiche (Climate, Weather, Radio, Energy, Status).
-- Konfigurierbare `sections` und `entity_map`.
-- Blendet fehlende Entities standardmäßig aus (`show_unavailable: false`).
+## Stand der Integration
 
-## Installation (HACS)
+Geprueft gegen `memphi2/ha-dhe-connect` auf `main`:
 
-1. Dieses Repository als **Custom Repository** in HACS hinzufügen (Typ: `Dashboard`).
-2. Karte installieren.
-3. Ressource prüfen (`/hacsfiles/dhe-connect-card/dhe-connect-card.js`).
-4. Home Assistant neu laden.
+- Domain: `stiebel_dhe_connect`
+- Aktuelle Manifest-Version: `1.0.5`
+- Wichtige Plattformen: `climate`, `sensor`, `switch`, `number`, `button`,
+  `media_player`, `weather`
+- Wichtige Standard-Entities: Water heating, current water flow, current power
+  consumption, Eco mode, bath fill, radio und weather
 
-## Lovelace Beispiel
-=======
-# dhe-connect-card
+## Installation zum Testen
 
-Initiale HACS-kompatible DHE Connect Card mit visueller Konfigurations-GUI.
-<<<<<<< ours
-<<<<<<< ours
-<<<<<<< ours
->>>>>>> theirs
-=======
->>>>>>> theirs
-=======
->>>>>>> theirs
+Kopiere nur das gebaute Bundle nach Home Assistant:
+
+```text
+dist/dhe-connect-card.js
+```
+
+nach:
+
+```text
+/config/www/dhe-connect-card/dhe-connect-card.js
+```
+
+Ressource in Home Assistant:
+
+```yaml
+url: /local/dhe-connect-card/dhe-connect-card.js?v=1
+type: module
+```
+
+Bei jeder neuen Kopie die Version hochzaehlen, z.B. `?v=2`.
+
+## GUI-Konfiguration
+
+Im Dashboard eine neue Karte vom Typ `DHE Connect Card` hinzufuegen. Die Karte
+wird im visuellen Editor konfiguriert.
+
+Die Autodiscovery sucht nach Entities der Integration `stiebel_dhe_connect`.
+Wenn deine Entity-IDs anders heissen, kannst du die wichtigsten Entities direkt
+in der GUI auswaehlen.
+
+## YAML Beispiel
 
 ```yaml
 type: custom:dhe-connect-card
 title: DHE Connect
-<<<<<<< ours
-<<<<<<< ours
-<<<<<<< ours
-device_prefix: sensor.dhe_connect_wohnzimmer
-sections:
-  - climate
-  - weather
-  - radio
-  - energy
-  - status
-show_unavailable: false
+entity_prefix: dhe_connect
+accent: aqua
+enable_actions: true
+auto_discover: true
+show_controls: true
+show_consumption: true
+show_media: true
+show_diagnostics: true
+temperature_step: 0.5
+memory_slots: 2
 ```
 
-## Erweiterte Konfiguration
+Optionale direkte Entity-Auswahl:
 
 ```yaml
 type: custom:dhe-connect-card
-device_prefix: sensor.dhe_connect_wohnzimmer
-entity_map:
-  climate: ["climate", "target_temperature", "current_temperature", "heating_active"]
-  weather: ["weather_current", "weather_favorite", "weather_location"]
-  radio: ["radio_station", "radio_playing", "radio_source"]
-  energy: ["energy_consumption", "water_consumption", "co2_emission", "electricity_price"]
-  status: ["status", "error", "last_update"]
+climate_entity: climate.dhe_connect_water_heating
+water_flow_entity: sensor.dhe_connect_current_water_flow
+power_entity: sensor.dhe_connect_current_power_consumption
+eco_mode_entity: switch.dhe_connect_eco_mode
+bath_fill_entity: switch.dhe_connect_bath_fill
+radio_entity: media_player.dhe_connect_radio
+weather_entity: weather.dhe_connect_weather
 ```
 
-## Build
+## Entwicklung
 
 ```bash
 npm install
 npm run build
+npm run validate:ha-hacs
 ```
-=======
-device_prefix: sensor.dhe_connect
-show_unavailable: false
-```
->>>>>>> theirs
-=======
-device_prefix: sensor.dhe_connect
-show_unavailable: false
-```
->>>>>>> theirs
-=======
-device_prefix: sensor.dhe_connect
-show_unavailable: false
-```
->>>>>>> theirs
-=======
 
-## Beispiel
-
-```yaml
-type: custom:dhe-connect-card
-title: DHE Connect
-device_prefix: sensor.dhe_connect
-show_unavailable: false
-```
->>>>>>> theirs
+Danach wieder nur `dist/dhe-connect-card.js` nach Home Assistant kopieren.

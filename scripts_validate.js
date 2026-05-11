@@ -14,6 +14,6 @@ if (!dist.includes('customElements.define("dhe-connect-card"')) fail('Card Regis
 if (!dist.includes('window.customCards')) fail('window.customCards Registrierung fehlt im dist Bundle');
 
 const readme = fs.readFileSync('README.md', 'utf8');
-if (!readme.includes('type: custom:dhe-connect-card')) fail('README enthält kein Lovelace Beispiel');
+if (!readme.includes('type: custom:dhe-connect-card')) fail('README enthaelt kein Lovelace Beispiel');
 
-if (!process.exitCode) console.log('OK: Basis-Validierung für HA/HACS Konformität erfolgreich.');
+if (!process.exitCode) console.log('OK: Basis-Validierung fuer HA/HACS Konformitaet erfolgreich.');
