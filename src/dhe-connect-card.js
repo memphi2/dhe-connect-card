@@ -1,4 +1,6 @@
-const CARD_VERSION = "0.4.1";
+const CARD_VERSION = "0.4.2";
+const CARD_TYPE = "dhe-connect-card";
+const CARD_TEST_TYPE = "dhe-connect-card-v042";
 const INTEGRATION_DOMAIN = "stiebel_dhe_connect";
 
 const DEFAULT_CONFIG = {
@@ -1679,18 +1681,40 @@ if (!customElements.get("dhe-connect-card-form-editor")) {
   customElements.define("dhe-connect-card-form-editor", DheConnectCardEditor);
 }
 
-if (!customElements.get("dhe-connect-card")) {
-  customElements.define("dhe-connect-card", DheConnectCard);
+if (!customElements.get(CARD_TYPE)) {
+  customElements.define(CARD_TYPE, DheConnectCard);
+} else {
+  console.warn(
+    "DHE Connect Card: custom element is already registered. "
+    + `If Home Assistant still shows the old editor, use custom:${CARD_TEST_TYPE} to verify the new bundle.`,
+  );
+}
+
+if (!customElements.get(CARD_TEST_TYPE)) {
+  customElements.define(CARD_TEST_TYPE, DheConnectCard);
 }
 
 window.customCards = window.customCards || [];
-if (!window.customCards.some((card) => card.type === "dhe-connect-card")) {
+const cardInfo = {
+  type: CARD_TYPE,
+  name: "DHE Connect Card",
+  preview: true,
+  description: `Dashboard-Karte fuer Stiebel DHE Connect mit GUI-Konfiguration (${CARD_VERSION}).`,
+  documentationURL: "https://github.com/memphi2/dhe-connect-card",
+};
+const existingCardInfo = window.customCards.findIndex((card) => card.type === CARD_TYPE);
+if (existingCardInfo >= 0) {
+  window.customCards[existingCardInfo] = cardInfo;
+} else {
+  window.customCards.push(cardInfo);
+}
+
+if (!window.customCards.some((card) => card.type === CARD_TEST_TYPE)) {
   window.customCards.push({
-    type: "dhe-connect-card",
-    name: "DHE Connect Card",
-    preview: true,
-    description: "Dashboard-Karte fuer Stiebel DHE Connect mit nativer GUI-Konfiguration.",
-    documentationURL: "https://github.com/memphi2/dhe-connect-card",
+    ...cardInfo,
+    type: CARD_TEST_TYPE,
+    name: "DHE Connect Card 0.4.2 Test",
+    description: "Test-Alias fuer den neuen Editor, falls der alte Browser-Registry-Eintrag noch aktiv ist.",
   });
 }
 

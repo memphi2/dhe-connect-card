@@ -36,11 +36,22 @@ nach:
 Ressource in Home Assistant:
 
 ```yaml
-url: /local/dhe-connect-card/dhe-connect-card.js?v=4
+url: /local/dhe-connect-card/dhe-connect-card.js?v=5
 type: module
 ```
 
 Bei jeder neuen Kopie die Version hochzaehlen, z.B. `?v=2`.
+
+Wenn Home Assistant trotz Cache-Buster noch den alten Editor fuer
+`custom:dhe-connect-card` nutzt, ist sehr wahrscheinlich noch eine alte
+Ressource frueher geladen. Zum Gegencheck gibt es den Alias:
+
+```yaml
+type: custom:dhe-connect-card-v042
+```
+
+Dieser Alias wird nur vom neuen Bundle registriert und umgeht einen bereits
+alten Browser-Registry-Eintrag fuer `dhe-connect-card`.
 
 ## GUI-Konfiguration
 
