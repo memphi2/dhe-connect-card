@@ -1,1112 +1,809 @@
-// src/dhe-connect-card.js
-var CARD_VERSION = "0.4.5";
-var CARD_TYPE = "dhe-connect-card";
-var CARD_TEST_TYPE = "dhe-connect-card-v042";
-var INTEGRATION_DOMAIN = "stiebel_dhe_connect";
-var CLIMATE_PREFIX_SUFFIXES = ["_setpoint", "_water_heating", "_wasser_heating", "_wassererwarmung"];
-var DEFAULT_CONFIG = {
+const CARD_VERSION = "1.0.0";
+const CARD_TYPE = "dhe-connect-card";
+const EDITOR_TYPE = "dhe-connect-card-config-editor";
+const INTEGRATION_DOMAIN = "stiebel_dhe_connect";
+
+const DEFAULT_CONFIG = {
   title: "DHE Connect",
   entity_prefix: "dhe_connect",
   accent: "aqua",
   compact: false,
   enable_actions: true,
-  auto_discover: true,
-  show_unavailable: false,
   show_controls: true,
   show_consumption: true,
   show_media: true,
-  show_diagnostics: true,
+  show_diagnostics: false,
   temperature_step: 0.5,
-  memory_slots: 2
 };
-var ACCENTS = {
-  aqua: { label: "Aqua", color: "#0098a6", contrast: "#063d45" },
-  blue: { label: "Blau", color: "#2f6fed", contrast: "#0d2d63" },
-  green: { label: "Gruen", color: "#2f8d55", contrast: "#143b25" },
-  amber: { label: "Amber", color: "#c77700", contrast: "#593200" },
-  graphite: { label: "Graphit", color: "#657381", contrast: "#27313a" }
+
+const CLIMATE_SUFFIXES = ["setpoint", "water_heating", "wasser_heating", "wassererwarmung"];
+
+const ACCENTS = {
+  aqua: { label: "Aqua", color: "#00a6b4", soft: "rgba(0, 166, 180, 0.15)" },
+  blue: { label: "Blau", color: "#3f7ee8", soft: "rgba(63, 126, 232, 0.14)" },
+  green: { label: "Gruen", color: "#2f9d61", soft: "rgba(47, 157, 97, 0.14)" },
+  amber: { label: "Amber", color: "#d18400", soft: "rgba(209, 132, 0, 0.16)" },
+  graphite: { label: "Graphit", color: "#74808c", soft: "rgba(116, 128, 140, 0.16)" },
 };
-var ENTITY_DEFINITIONS = {
+
+const ENTITY_DEFS = {
   climate: {
     domain: "climate",
+    keys: CLIMATE_SUFFIXES,
+    config: "climate_entity",
+    label: "Temperatur",
     icon: "mdi:water-thermometer",
-    label: "Wasser",
-    configKeys: ["climate_entity"],
-    objectIds: ["{p}_setpoint", "{p}_water_heating", "{p}_wasser_heating", "{p}_wassererwarmung"],
-    terms: ["setpoint", "water heating", "durchlauferhitzer", "warmwasser"]
   },
   water_flow: {
     domain: "sensor",
-    icon: "mdi:waves-arrow-right",
+    keys: ["water_flow"],
+    config: "water_flow_entity",
     label: "Durchfluss",
-    configKeys: ["water_flow_entity"],
-    objectIds: ["{p}_current_water_flow", "{p}_water_flow", "{p}_durchfluss"],
-    terms: ["current water flow", "water flow", "durchfluss"],
-    deviceClasses: ["volume_flow_rate"],
-    units: ["L/min", "l/min"]
+    icon: "mdi:waves-arrow-right",
   },
   power: {
     domain: "sensor",
-    icon: "mdi:flash",
+    keys: ["power"],
+    config: "power_entity",
     label: "Leistung",
-    configKeys: ["power_entity"],
-    objectIds: ["{p}_current_power_consumption", "{p}_power", "{p}_leistung"],
-    terms: ["current power", "power consumption", "leistung"],
-    deviceClasses: ["power"],
-    units: ["kW", "W"]
+    icon: "mdi:flash",
   },
   inlet_temperature: {
     domain: "sensor",
-    icon: "mdi:thermometer-chevron-down",
+    keys: ["inlet_temperature"],
+    config: "inlet_temperature_entity",
     label: "Zulauf",
-    configKeys: ["inlet_temperature_entity"],
-    objectIds: ["{p}_inlet_temperature", "{p}_internal_temperature_1", "{p}_zulauf_temperatur"],
-    terms: ["inlet temperature", "internal temperature 1", "zulauf"],
-    deviceClasses: ["temperature"],
-    units: ["C", "\xB0C"]
+    icon: "mdi:thermometer-chevron-down",
   },
   outlet_temperature: {
     domain: "sensor",
-    icon: "mdi:thermometer-chevron-up",
+    keys: ["outlet_temperature"],
+    config: "outlet_temperature_entity",
     label: "Auslauf",
-    configKeys: ["outlet_temperature_entity"],
-    objectIds: ["{p}_outlet_temperature", "{p}_internal_temperature_2", "{p}_auslauf_temperatur"],
-    terms: ["outlet temperature", "internal temperature 2", "auslauf"],
-    deviceClasses: ["temperature"],
-    units: ["C", "\xB0C"]
+    icon: "mdi:thermometer-chevron-up",
   },
   connection_state: {
     domain: "sensor",
-    icon: "mdi:lan-connect",
+    keys: ["connection_state"],
+    config: "connection_state_entity",
     label: "Verbindung",
-    configKeys: ["connection_state_entity"],
-    objectIds: ["{p}_connection_state", "{p}_verbindung"],
-    terms: ["connection state", "verbindung"]
+    icon: "mdi:lan-connect",
   },
-  temperature_error_status: {
+  error_status: {
     domain: "sensor",
+    keys: ["error_status"],
+    config: "error_status_entity",
+    label: "Fehler",
     icon: "mdi:alert-octagon-outline",
+  },
+  device_status: {
+    domain: "sensor",
+    keys: ["device_status"],
+    config: "device_status_entity",
     label: "Status",
-    configKeys: ["status_entity", "temperature_error_status_entity"],
-    objectIds: ["{p}_error_status", "{p}_temperature_error_status", "{p}_device_status", "{p}_status"],
-    terms: ["error status", "temperature error", "device status", "status"]
-  },
-  reconnect_count: {
-    domain: "sensor",
-    icon: "mdi:restart",
-    label: "Reconnects",
-    objectIds: ["{p}_reconnect_count", "{p}_reconnects"],
-    terms: ["reconnects", "reconnect count"]
-  },
-  last_reconnect_reason: {
-    domain: "sensor",
-    icon: "mdi:alert-circle-outline",
-    label: "Reconnect-Grund",
-    objectIds: ["{p}_last_reconnect_reason"],
-    terms: ["last reconnect reason", "reconnect grund"]
-  },
-  device_info: {
-    domain: "sensor",
-    icon: "mdi:information-outline",
-    label: "Geraet",
-    objectIds: ["{p}_device_info", "{p}_gerateinfo"],
-    terms: ["device info", "geraet", "gerateinfo"]
+    icon: "mdi:wrench",
   },
   eco_mode: {
     domain: "switch",
-    icon: "mdi:leaf",
+    keys: ["eco_mode"],
+    config: "eco_mode_entity",
     label: "Eco",
-    configKeys: ["eco_mode_entity"],
-    objectIds: ["{p}_eco_mode", "{p}_eco"],
-    terms: ["eco mode", "eco"]
+    icon: "mdi:leaf",
+    action: "toggle",
   },
-  bath_fill: {
+  bath_fill_active: {
     domain: "switch",
-    icon: "mdi:bathtub",
+    keys: ["bath_fill_active"],
+    config: "bath_fill_entity",
     label: "Wanne",
-    configKeys: ["bath_fill_entity"],
-    objectIds: ["{p}_bath_fill_active", "{p}_bath_fill", "{p}_wanne"],
-    terms: ["bath fill", "wanne"]
+    icon: "mdi:bathtub",
+    action: "toggle",
   },
-  maximum_active: {
+  child_safety_active: {
     domain: "switch",
-    icon: "mdi:thermometer-check",
+    keys: ["child_safety_active"],
+    config: "child_safety_entity",
     label: "Kindersich.",
-    configKeys: ["maximum_active_entity"],
-    objectIds: ["{p}_child_safety_active", "{p}_maximum_temperature_limit", "{p}_maximum_active", "{p}_maximaltemperatur_limit"],
-    terms: ["child safety active", "kindersicherung", "maximum temperature limit", "limit"]
+    icon: "mdi:thermometer-check",
+    action: "toggle",
   },
-  brush_timer_activation: {
-    domain: "switch",
-    icon: "mdi:toothbrush",
-    label: "Zahnputzen",
-    objectIds: ["{p}_brush_timer_active", "{p}_brush_timer", "{p}_brush_timer_activation", "{p}_zahnputz_timer"],
-    terms: ["brush timer", "zahnputz"]
-  },
-  shower_timer_activation: {
-    domain: "switch",
-    icon: "mdi:shower-head",
-    label: "Dusche",
-    objectIds: ["{p}_shower_timer_active", "{p}_shower_timer", "{p}_shower_timer_activation", "{p}_duschtimer"],
-    terms: ["shower timer", "dusche"]
-  },
-  wellness_cold_prevention: {
-    domain: "switch",
-    icon: "mdi:shower",
-    label: "Erkaeltung",
-    objectIds: ["{p}_cold_prevention", "{p}_wellness_cold_prevention"],
-    terms: ["cold prevention", "erkaeltung"]
-  },
-  winter_refresh: {
-    domain: "switch",
-    icon: "mdi:snowflake-thermometer",
-    label: "Winter",
-    objectIds: ["{p}_wellness_winter_refresh", "{p}_winter_refresh"],
-    terms: ["winter refresh"]
-  },
-  summer_fitness: {
-    domain: "switch",
-    icon: "mdi:weather-sunny",
-    label: "Sommer",
-    objectIds: ["{p}_wellness_summer_fitness", "{p}_summer_fitness"],
-    terms: ["summer fitness"]
-  },
-  circulation_support: {
-    domain: "switch",
-    icon: "mdi:heart-pulse",
-    label: "Kreislauf",
-    objectIds: ["{p}_wellness_circulation_support", "{p}_circulation_support"],
-    terms: ["circulation support", "kreislauf"]
+  scald_protection_active: {
+    domain: "binary_sensor",
+    keys: ["scald_protection_active"],
+    config: "scald_protection_entity",
+    label: "Verbruehschutz",
+    icon: "mdi:shield-thermometer",
   },
   bath_fill_target_volume: {
     domain: "number",
+    keys: ["bath_fill_target_volume"],
+    config: "bath_fill_target_volume_entity",
+    label: "Wannenfuellmenge",
     icon: "mdi:bathtub-outline",
-    label: "Wannenmenge",
-    configKeys: ["bath_fill_target_volume_entity"],
-    objectIds: ["{p}_bath_fill_target_volume", "{p}_wannenmenge"],
-    terms: ["bath fill target volume", "wannenmenge"],
-    deviceClasses: ["volume"],
-    units: ["L", "l"]
   },
   bath_fill_remaining_volume: {
     domain: "sensor",
-    icon: "mdi:bathtub",
+    keys: ["bath_fill_remaining_volume"],
+    config: "bath_fill_remaining_entity",
     label: "Wanne Rest",
-    configKeys: ["bath_fill_remaining_entity"],
-    objectIds: ["{p}_bath_fill_remaining_volume", "{p}_bath_fill_remaining"],
-    terms: ["bath fill remaining", "wanne verbleibend"],
-    deviceClasses: ["water"],
-    units: ["L", "l"]
+    icon: "mdi:bathtub",
   },
-  maximum_temperature: {
+  bath_fill_current_volume: {
+    domain: "sensor",
+    keys: ["bath_fill_current_volume"],
+    config: "bath_fill_current_entity",
+    label: "Wanne aktuell",
+    icon: "mdi:bathtub",
+  },
+  child_safety_temperature_limit: {
     domain: "number",
-    icon: "mdi:thermometer-high",
+    keys: ["child_safety_temperature_limit"],
+    config: "child_safety_temperature_entity",
     label: "Kindersich. Temp.",
-    objectIds: ["{p}_child_safety_temperature_limit", "{p}_maximum_temperature"],
-    terms: ["child safety temperature limit", "kindersicherung temperatur", "maximum temperature", "maximaltemp"],
-    deviceClasses: ["temperature"],
-    units: ["C", "\xB0C"]
+    icon: "mdi:thermometer-high",
   },
   eco_flow_limit: {
     domain: "number",
-    icon: "mdi:water-pump",
+    keys: ["eco_flow_limit"],
+    config: "eco_flow_limit_entity",
     label: "Eco-Limit",
-    objectIds: ["{p}_eco_flow_limit"],
-    terms: ["eco flow limit"],
-    deviceClasses: ["volume_flow_rate"],
-    units: ["L/min", "l/min"]
+    icon: "mdi:water-pump",
+  },
+  brush_timer_active: {
+    domain: "switch",
+    keys: ["brush_timer_active"],
+    config: "brush_timer_entity",
+    label: "Zahnputzen",
+    icon: "mdi:toothbrush",
+    action: "toggle",
+  },
+  shower_timer_active: {
+    domain: "switch",
+    keys: ["shower_timer_active"],
+    config: "shower_timer_entity",
+    label: "Dusche",
+    icon: "mdi:shower-head",
+    action: "toggle",
   },
   brush_timer_duration: {
     domain: "number",
-    icon: "mdi:toothbrush",
-    label: "Zahnputzen Dauer",
-    objectIds: ["{p}_brush_timer_duration"],
-    terms: ["brush timer duration"],
-    units: ["s", "sec", "seconds"]
+    keys: ["brush_timer_duration"],
+    config: "brush_timer_duration_entity",
+    label: "Zahnputz-Dauer",
+    icon: "mdi:timer-edit",
   },
   shower_timer_duration: {
     domain: "number",
+    keys: ["shower_timer_duration"],
+    config: "shower_timer_duration_entity",
+    label: "Dusch-Dauer",
     icon: "mdi:timer-edit",
-    label: "Dusche Dauer",
-    objectIds: ["{p}_shower_timer_duration"],
-    terms: ["shower timer duration"],
-    units: ["s", "sec", "seconds"]
   },
   brush_timer_remaining: {
     domain: "sensor",
-    icon: "mdi:toothbrush",
+    keys: ["brush_timer_remaining"],
+    config: "brush_timer_remaining_entity",
     label: "Zahnputz-Rest",
-    objectIds: ["{p}_brush_timer_remaining"],
-    terms: ["brush timer remaining"],
-    units: ["s", "sec", "seconds"]
+    icon: "mdi:timer-sand",
   },
   shower_timer_remaining: {
     domain: "sensor",
-    icon: "mdi:timer-sand",
+    keys: ["shower_timer_remaining"],
+    config: "shower_timer_remaining_entity",
     label: "Dusch-Rest",
-    objectIds: ["{p}_shower_timer_remaining"],
-    terms: ["shower timer remaining"],
-    units: ["s", "sec", "seconds"]
+    icon: "mdi:timer-sand",
   },
-  reset_brush_timer: {
-    domain: "button",
-    icon: "mdi:toothbrush",
-    label: "Reset Zahnputzen",
-    objectIds: ["{p}_reset_brush_timer"],
-    terms: ["reset brush timer"]
+  wellness_cold_prevention: {
+    domain: "switch",
+    keys: ["wellness_cold_prevention"],
+    config: "wellness_cold_entity",
+    label: "Erkaeltung",
+    icon: "mdi:shower",
+    action: "toggle",
   },
-  reset_shower_timer: {
-    domain: "button",
-    icon: "mdi:shower-head",
-    label: "Reset Dusche",
-    objectIds: ["{p}_reset_shower_timer"],
-    terms: ["reset shower timer"]
+  wellness_winter_refresh: {
+    domain: "switch",
+    keys: ["wellness_winter_refresh"],
+    config: "wellness_winter_entity",
+    label: "Winter",
+    icon: "mdi:snowflake-thermometer",
+    action: "toggle",
   },
-  last_usage_water: {
-    domain: "sensor",
-    icon: "mdi:water-check",
-    label: "Wasser",
-    objectIds: ["{p}_last_usage_water"],
-    terms: ["last usage water"]
+  wellness_summer_fitness: {
+    domain: "switch",
+    keys: ["wellness_summer_fitness"],
+    config: "wellness_summer_entity",
+    label: "Sommer",
+    icon: "mdi:weather-sunny",
+    action: "toggle",
   },
-  last_usage_energy: {
-    domain: "sensor",
-    icon: "mdi:lightning-bolt",
-    label: "Energie",
-    objectIds: ["{p}_last_usage_energy"],
-    terms: ["last usage energy"]
-  },
-  last_usage_time: {
-    domain: "sensor",
-    icon: "mdi:timer-outline",
-    label: "Dauer",
-    objectIds: ["{p}_last_usage_duration", "{p}_last_usage_time"],
-    terms: ["last usage duration", "last usage time"]
-  },
-  last_usage_cost: {
-    domain: "sensor",
-    icon: "mdi:cash",
-    label: "Kosten",
-    objectIds: ["{p}_last_usage_cost"],
-    terms: ["last usage cost"]
+  wellness_circulation_support: {
+    domain: "switch",
+    keys: ["wellness_circulation_support"],
+    config: "wellness_circulation_entity",
+    label: "Kreislauf",
+    icon: "mdi:heart-pulse",
+    action: "toggle",
   },
   water_consumption_week: {
     domain: "sensor",
-    icon: "mdi:water",
+    keys: ["water_consumption_week"],
+    config: "water_consumption_week_entity",
     label: "Wasser Woche",
-    objectIds: ["{p}_water_consumption_week"],
-    terms: ["water consumption week"],
-    deviceClasses: ["water"]
+    icon: "mdi:water",
+  },
+  water_consumption_year: {
+    domain: "sensor",
+    keys: ["water_consumption_year"],
+    config: "water_consumption_year_entity",
+    label: "Wasser Jahr",
+    icon: "mdi:water",
+  },
+  water_consumption_total: {
+    domain: "sensor",
+    keys: ["water_consumption_total"],
+    config: "water_consumption_total_entity",
+    label: "Wasser gesamt",
+    icon: "mdi:water",
   },
   energy_consumption_week: {
     domain: "sensor",
-    icon: "mdi:lightning-bolt",
+    keys: ["energy_consumption_week"],
+    config: "energy_consumption_week_entity",
     label: "Energie Woche",
-    objectIds: ["{p}_energy_consumption_week"],
-    terms: ["energy consumption week"],
-    deviceClasses: ["energy"]
+    icon: "mdi:lightning-bolt",
   },
-  saving_monitor_possible_value: {
+  energy_consumption_year: {
     domain: "sensor",
-    icon: "mdi:cash-plus",
-    label: "Moegl. Sparen",
-    objectIds: ["{p}_saving_monitor_possible_cost", "{p}_saving_monitor_possible_cost_saving", "{p}_saving_monitor_possible_value"],
-    terms: ["saving monitor possible cost", "possible cost saving"]
+    keys: ["energy_consumption_year"],
+    config: "energy_consumption_year_entity",
+    label: "Energie Jahr",
+    icon: "mdi:lightning-bolt",
   },
-  saving_monitor_real_value: {
+  energy_consumption_total: {
     domain: "sensor",
-    icon: "mdi:cash-check",
-    label: "Real gespart",
-    objectIds: ["{p}_saving_monitor_real_cost", "{p}_saving_monitor_real_cost_saving", "{p}_saving_monitor_real_value"],
-    terms: ["saving monitor real cost", "real cost saving"]
+    keys: ["energy_consumption_total"],
+    config: "energy_consumption_total_entity",
+    label: "Energie gesamt",
+    icon: "mdi:lightning-bolt",
+  },
+  last_usage_water: {
+    domain: "sensor",
+    keys: ["last_usage_water"],
+    config: "last_usage_water_entity",
+    label: "Letztes Wasser",
+    icon: "mdi:water-check",
+  },
+  last_usage_energy: {
+    domain: "sensor",
+    keys: ["last_usage_energy"],
+    config: "last_usage_energy_entity",
+    label: "Letzte Energie",
+    icon: "mdi:lightning-bolt",
+  },
+  last_usage_time: {
+    domain: "sensor",
+    keys: ["last_usage_time"],
+    config: "last_usage_time_entity",
+    label: "Letzte Dauer",
+    icon: "mdi:timer-outline",
+  },
+  last_usage_cost: {
+    domain: "sensor",
+    keys: ["last_usage_cost"],
+    config: "last_usage_cost_entity",
+    label: "Letzte Kosten",
+    icon: "mdi:cash",
+  },
+  reconnect_count: {
+    domain: "sensor",
+    keys: ["reconnect_count"],
+    config: "reconnect_count_entity",
+    label: "Reconnects",
+    icon: "mdi:restart",
+  },
+  last_reconnect_reason: {
+    domain: "sensor",
+    keys: ["last_reconnect_reason"],
+    config: "last_reconnect_reason_entity",
+    label: "Reconnect-Grund",
+    icon: "mdi:alert-circle-outline",
+  },
+  device_info: {
+    domain: "sensor",
+    keys: ["device_info"],
+    config: "device_info_entity",
+    label: "Geraeteinfo",
+    icon: "mdi:information-outline",
   },
   radio: {
     domain: "media_player",
-    icon: "mdi:radio",
+    keys: ["radio"],
+    config: "radio_entity",
     label: "Radio",
-    configKeys: ["radio_entity"],
-    objectIds: ["{p}_radio"],
-    terms: ["radio"]
+    icon: "mdi:radio",
   },
   weather: {
     domain: "weather",
-    icon: "mdi:weather-partly-cloudy",
+    keys: ["weather"],
+    config: "weather_entity",
     label: "Wetter",
-    configKeys: ["weather_entity"],
-    objectIds: ["{p}_weather", "{p}_wetter"],
-    terms: ["weather", "wetter"]
-  }
+    icon: "mdi:weather-partly-cloudy",
+  },
 };
-for (let slot = 1; slot <= 12; slot += 1) {
-  ENTITY_DEFINITIONS[`temperature_memory_${slot}`] = {
-    domain: "button",
-    icon: slot < 10 ? `mdi:numeric-${slot}-box-outline` : "mdi:counter",
-    label: `Speicher ${slot}`,
-    objectIds: [`{p}_memory_${slot}`, `{p}_temperature_memory_${slot}`],
-    terms: [`memory ${slot}`, `temperature memory ${slot}`, `speicher ${slot}`]
-  };
-  ENTITY_DEFINITIONS[`temperature_memory_${slot}_temperature`] = {
-    domain: "number",
-    icon: slot < 10 ? `mdi:numeric-${slot}-box-outline` : "mdi:counter",
-    label: `${slot}`,
-    objectIds: [`{p}_memory_${slot}_temperature`, `{p}_temperature_memory_${slot}_temperature`],
-    terms: [`memory ${slot} temperature`, `temperature memory ${slot}`]
-  };
-}
-var FIELD_LABELS = {
+
+const MAIN_ENTITIES = [
+  "water_flow",
+  "power",
+  "inlet_temperature",
+  "outlet_temperature",
+];
+
+const CONTROL_ENTITIES = [
+  "eco_mode",
+  "bath_fill_active",
+  "child_safety_active",
+  "scald_protection_active",
+  "bath_fill_target_volume",
+  "bath_fill_remaining_volume",
+  "bath_fill_current_volume",
+  "child_safety_temperature_limit",
+  "eco_flow_limit",
+  "brush_timer_active",
+  "shower_timer_active",
+  "brush_timer_duration",
+  "shower_timer_duration",
+  "brush_timer_remaining",
+  "shower_timer_remaining",
+  "wellness_cold_prevention",
+  "wellness_winter_refresh",
+  "wellness_summer_fitness",
+  "wellness_circulation_support",
+];
+
+const CONSUMPTION_ENTITIES = [
+  "water_consumption_week",
+  "water_consumption_year",
+  "water_consumption_total",
+  "energy_consumption_week",
+  "energy_consumption_year",
+  "energy_consumption_total",
+  "last_usage_water",
+  "last_usage_energy",
+  "last_usage_time",
+  "last_usage_cost",
+];
+
+const DIAGNOSTIC_ENTITIES = [
+  "connection_state",
+  "error_status",
+  "device_status",
+  "reconnect_count",
+  "last_reconnect_reason",
+  "device_info",
+];
+
+const FIELD_LABELS = {
   title: "Titel",
   entity_prefix: "Entity-Prefix",
   accent: "Akzent",
-  compact: "Kompaktes Layout",
+  compact: "Kompakt",
   enable_actions: "Aktionen erlauben",
-  auto_discover: "Entities automatisch finden",
-  show_unavailable: "Fehlende Entities anzeigen",
   show_controls: "Steuerung anzeigen",
   show_consumption: "Verbrauch anzeigen",
-  show_media: "Wetter und Radio anzeigen",
+  show_media: "Radio/Wetter anzeigen",
   show_diagnostics: "Diagnose anzeigen",
   temperature_step: "Temperaturschritt",
-  memory_slots: "Temperaturspeicher",
-  climate_entity: "Climate",
-  water_flow_entity: "Durchfluss",
-  power_entity: "Leistung",
-  inlet_temperature_entity: "Zulauf",
-  outlet_temperature_entity: "Auslauf",
-  connection_state_entity: "Verbindungsstatus",
-  status_entity: "Fehlerstatus",
-  eco_mode_entity: "Eco-Schalter",
-  bath_fill_entity: "Wannenfuellung",
-  maximum_active_entity: "Kindersicherung",
-  bath_fill_target_volume_entity: "Wannen-Zielmenge",
-  bath_fill_remaining_entity: "Wanne verbleibend",
-  radio_entity: "Radio",
-  weather_entity: "Wetter"
 };
-var FIELD_HELPERS = {
-  entity_prefix: "Beispiel: dhe_connect fuer climate.dhe_connect_water_heating. Direkte Entity-Auswahl unten hat Vorrang.",
-  auto_discover: "Findet passende stiebel_dhe_connect Entities anhand Entity-ID und Name.",
-  enable_actions: "Wenn aus, zeigt die Karte nur Statuswerte und oeffnet Details."
+
+for (const def of Object.values(ENTITY_DEFS)) {
+  FIELD_LABELS[def.config] = def.label;
+}
+
+const FIELD_HELPERS = {
+  entity_prefix: "Beispiel: dhe_connect fuer sensor.dhe_connect_water_flow.",
+  enable_actions: "Aktiviert Temperatur +/- und Switch-Toggles in der Karte.",
 };
-var html = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
-var numberValue = (value) => {
+
+const html = (value) => String(value ?? "")
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;")
+  .replaceAll("'", "&#039;");
+
+const numberValue = (value) => {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
-var clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-var isUnavailableState = (stateObj) => !stateObj || ["unknown", "unavailable", ""].includes(String(stateObj.state));
-var normalizeText = (value) => String(value ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll("\xE4", "ae").replaceAll("\xF6", "oe").replaceAll("\xFC", "ue").replaceAll("\xDF", "ss");
-var slug = (value) => normalizeText(value).replace(/^[a-z0-9_]+\./, "").replace(/[^a-z0-9]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
-var entitySelector = (name, domain) => ({
+
+const normalize = (value) => String(value ?? "")
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9_]+/g, "_")
+  .replace(/_+/g, "_")
+  .replace(/^_|_$/g, "");
+
+const stripDomain = (value) => String(value ?? "").replace(/^[a-z_]+\./, "");
+
+const normalizePrefix = (value) => {
+  let prefix = normalize(stripDomain(value || DEFAULT_CONFIG.entity_prefix));
+  for (const suffix of CLIMATE_SUFFIXES) {
+    const token = `_${suffix}`;
+    if (prefix.endsWith(token)) prefix = prefix.slice(0, -token.length);
+  }
+  return prefix || DEFAULT_CONFIG.entity_prefix;
+};
+
+const isUnavailable = (stateObj) => !stateObj || ["unavailable", "unknown", ""].includes(String(stateObj.state ?? ""));
+
+const entitySelector = (name, domain) => ({
   name,
   selector: {
     entity: {
-      filter: [
-        {
-          integration: INTEGRATION_DOMAIN,
-          domain
-        }
-      ]
-    }
-  }
+      filter: [{ integration: INTEGRATION_DOMAIN, domain }],
+    },
+  },
 });
-var migrateConfig = (config) => {
-  const next = { ...config || {} };
-  if (!next.entity_prefix && next.device_prefix) {
-    next.entity_prefix = slug(next.device_prefix);
-  }
+
+const toggleSchema = (name) => ({ name, selector: { boolean: {} } });
+
+const textSchema = (name) => ({ name, selector: { text: {} } });
+
+const configForm = () => ({
+  schema: [
+    textSchema("title"),
+    textSchema("entity_prefix"),
+    {
+      name: "accent",
+      selector: {
+        select: {
+          mode: "dropdown",
+          options: Object.entries(ACCENTS).map(([value, item]) => ({ value, label: item.label })),
+        },
+      },
+    },
+    {
+      name: "temperature_step",
+      selector: { number: { min: 0.5, max: 5, step: 0.5, mode: "box", unit_of_measurement: "C" } },
+    },
+    toggleSchema("compact"),
+    toggleSchema("enable_actions"),
+    toggleSchema("show_controls"),
+    toggleSchema("show_consumption"),
+    toggleSchema("show_media"),
+    toggleSchema("show_diagnostics"),
+    entitySelector("climate_entity", "climate"),
+    entitySelector("water_flow_entity", "sensor"),
+    entitySelector("power_entity", "sensor"),
+    entitySelector("inlet_temperature_entity", "sensor"),
+    entitySelector("outlet_temperature_entity", "sensor"),
+    entitySelector("connection_state_entity", "sensor"),
+    entitySelector("error_status_entity", "sensor"),
+    entitySelector("device_status_entity", "sensor"),
+    entitySelector("eco_mode_entity", "switch"),
+    entitySelector("bath_fill_entity", "switch"),
+    entitySelector("child_safety_entity", "switch"),
+    entitySelector("scald_protection_entity", "binary_sensor"),
+    entitySelector("bath_fill_target_volume_entity", "number"),
+    entitySelector("bath_fill_remaining_entity", "sensor"),
+    entitySelector("child_safety_temperature_entity", "number"),
+    entitySelector("eco_flow_limit_entity", "number"),
+    entitySelector("radio_entity", "media_player"),
+    entitySelector("weather_entity", "weather"),
+  ],
+  computeLabel: (schema) => FIELD_LABELS[schema.name] || schema.name,
+  computeHelper: (schema) => FIELD_HELPERS[schema.name],
+});
+
+const migrateConfig = (config) => {
+  const next = { ...(config || {}) };
+  if (!next.entity_prefix && next.device_prefix) next.entity_prefix = next.device_prefix;
   delete next.device_prefix;
+  next.entity_prefix = normalizePrefix(next.entity_prefix);
   return next;
 };
-var DheConnectCard = class extends HTMLElement {
+
+class DheConnectCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
   }
+
   setConfig(config) {
-    this._config = this._normalizeConfig(config || {});
+    this._config = {
+      ...DEFAULT_CONFIG,
+      ...migrateConfig(config),
+    };
+    if (!ACCENTS[this._config.accent]) this._config.accent = DEFAULT_CONFIG.accent;
+    this._config.temperature_step = numberValue(this._config.temperature_step) || DEFAULT_CONFIG.temperature_step;
     this._render();
   }
+
   set hass(hass) {
     this._hass = hass;
     this._render();
   }
+
   getCardSize() {
-    if (this._config?.compact) return 4;
-    return 7;
+    return this._config?.compact ? 4 : 7;
   }
+
   getGridOptions() {
     return {
       columns: this._config?.compact ? 6 : 9,
-      min_columns: 3,
       rows: this._config?.compact ? 4 : 7,
-      min_rows: 3
+      min_columns: 3,
+      min_rows: 3,
     };
   }
+
   static getStubConfig(hass) {
     return {
-      title: "DHE Connect",
-      entity_prefix: findPrefixFromHass(hass) || DEFAULT_CONFIG.entity_prefix,
-      accent: "aqua",
-      compact: false,
+      title: DEFAULT_CONFIG.title,
+      entity_prefix: findPrefixFromHass(hass),
+      accent: DEFAULT_CONFIG.accent,
       enable_actions: true,
-      auto_discover: true,
       show_controls: true,
       show_consumption: true,
       show_media: true,
-      show_diagnostics: true,
+      show_diagnostics: false,
       temperature_step: 0.5,
-      memory_slots: 2
     };
   }
-  static getConfigElement() {
-    return document.createElement("dhe-connect-card-form-editor");
-  }
+
   static getConfigForm() {
-    return {
-      schema: [
-        {
-          type: "grid",
-          name: "",
-          flatten: true,
-          column_min_width: "180px",
-          schema: [
-            { name: "title", selector: { text: {} } },
-            { name: "entity_prefix", selector: { text: {} } },
-            {
-              name: "accent",
-              selector: {
-                select: {
-                  options: Object.entries(ACCENTS).map(([value, item]) => ({
-                    value,
-                    label: item.label
-                  }))
-                }
-              }
-            },
-            {
-              name: "temperature_step",
-              selector: {
-                number: {
-                  min: 0.5,
-                  max: 5,
-                  step: 0.5,
-                  mode: "box",
-                  unit_of_measurement: "C"
-                }
-              }
-            },
-            {
-              name: "memory_slots",
-              selector: {
-                number: {
-                  min: 0,
-                  max: 12,
-                  step: 1,
-                  mode: "box"
-                }
-              }
-            }
-          ]
-        },
-        {
-          type: "expandable",
-          name: "display",
-          title: "Anzeige",
-          flatten: true,
-          schema: [
-            { name: "compact", selector: { boolean: {} } },
-            { name: "enable_actions", selector: { boolean: {} } },
-            { name: "auto_discover", selector: { boolean: {} } },
-            { name: "show_unavailable", selector: { boolean: {} } },
-            { name: "show_controls", selector: { boolean: {} } },
-            { name: "show_consumption", selector: { boolean: {} } },
-            { name: "show_media", selector: { boolean: {} } },
-            { name: "show_diagnostics", selector: { boolean: {} } }
-          ]
-        },
-        {
-          type: "expandable",
-          name: "entities_main",
-          title: "Haupt-Entities",
-          flatten: true,
-          schema: [
-            entitySelector("climate_entity", "climate"),
-            entitySelector("water_flow_entity", "sensor"),
-            entitySelector("power_entity", "sensor"),
-            entitySelector("inlet_temperature_entity", "sensor"),
-            entitySelector("outlet_temperature_entity", "sensor"),
-            entitySelector("connection_state_entity", "sensor"),
-            entitySelector("status_entity", "sensor")
-          ]
-        },
-        {
-          type: "expandable",
-          name: "entities_controls",
-          title: "Steuerung",
-          flatten: true,
-          schema: [
-            entitySelector("eco_mode_entity", "switch"),
-            entitySelector("bath_fill_entity", "switch"),
-            entitySelector("maximum_active_entity", "switch"),
-            entitySelector("bath_fill_target_volume_entity", "number"),
-            entitySelector("bath_fill_remaining_entity", "sensor")
-          ]
-        },
-        {
-          type: "expandable",
-          name: "entities_media",
-          title: "Wetter und Radio",
-          flatten: true,
-          schema: [
-            entitySelector("radio_entity", "media_player"),
-            entitySelector("weather_entity", "weather")
-          ]
-        }
-      ],
-      computeLabel: (schema) => FIELD_LABELS[schema.name] || void 0,
-      computeHelper: (schema) => FIELD_HELPERS[schema.name] || void 0,
-      assertConfig: (config) => {
-        for (const [key, value] of Object.entries(config || {})) {
-          if (key.endsWith("_entity") && value && !String(value).includes(".")) {
-            throw new Error(`${key} muss eine Entity-ID sein.`);
-          }
-        }
-      }
-    };
+    return configForm();
   }
-  _normalizeConfig(config) {
-    const legacyPrefix = config.entity_prefix || config.device_prefix || DEFAULT_CONFIG.entity_prefix;
-    return {
-      ...DEFAULT_CONFIG,
-      ...config,
-      entity_prefix: slug(legacyPrefix) || DEFAULT_CONFIG.entity_prefix,
-      accent: ACCENTS[config.accent] ? config.accent : DEFAULT_CONFIG.accent,
-      temperature_step: clamp(numberValue(config.temperature_step) || DEFAULT_CONFIG.temperature_step, 0.5, 5),
-      memory_slots: clamp(Math.round(numberValue(config.memory_slots) ?? DEFAULT_CONFIG.memory_slots), 0, 12)
-    };
+
+  static getConfigElement() {
+    return document.createElement(EDITOR_TYPE);
   }
+
   _render() {
     if (!this.shadowRoot || !this._config) return;
     const accent = ACCENTS[this._config.accent] || ACCENTS.aqua;
+    const className = this._config.compact ? "compact" : "";
+
     this.shadowRoot.innerHTML = `
-      ${this._style(accent)}
-      <ha-card class="${this._config.compact ? "compact" : ""}">
+      ${this._styles(accent)}
+      <ha-card class="${className}">
         ${this._renderHero()}
         <div class="body">
           ${this._config.show_controls ? this._renderControls() : ""}
-          ${this._config.show_consumption ? this._renderConsumption() : ""}
+          ${this._config.show_consumption ? this._renderSection("Verbrauch", "mdi:chart-line", CONSUMPTION_ENTITIES) : ""}
           ${this._config.show_media ? this._renderMedia() : ""}
-          ${this._config.show_diagnostics ? this._renderDiagnostics() : ""}
+          ${this._config.show_diagnostics ? this._renderSection("Diagnose", "mdi:stethoscope", DIAGNOSTIC_ENTITIES) : ""}
         </div>
       </ha-card>
     `;
     this._bindEvents();
   }
+
   _renderHero() {
     const climate = this._entity("climate");
     const outlet = this._entity("outlet_temperature");
-    const status = this._status();
+    const connection = this._entity("connection_state");
     const target = numberValue(climate.stateObj?.attributes?.temperature);
     const current = numberValue(climate.stateObj?.attributes?.current_temperature) ?? numberValue(outlet.stateObj?.state);
-    const targetText = target === null ? "--" : `${target.toFixed(target % 1 ? 1 : 0)} C`;
-    const currentText = current === null ? "--" : `${current.toFixed(current % 1 ? 1 : 0)} C`;
-    const mode = climate.stateObj?.state === "off" ? "Aus" : "Bereit";
-    const hasClimate = Boolean(climate.stateObj);
+    const status = connection.stateObj?.state || (climate.stateObj ? "bereit" : "nicht verbunden");
+
     return `
-      <section class="hero ${html(status.tone)}">
-        <div class="hero-head">
-          <button class="title-button" data-more-info="${html(climate.id || "")}" ${hasClimate ? "" : "disabled"}>
+      <section class="hero">
+        <div class="hero-top">
+          <button class="title" data-more-info="${html(climate.id)}" ${climate.id ? "" : "disabled"}>
             <span>STIEBEL ELTRON</span>
             <strong>${html(this._config.title)}</strong>
           </button>
-          <button class="status" data-more-info="${html(status.entityId || climate.id || "")}" ${status.entityId || climate.id ? "" : "disabled"}>
-            <span class="dot"></span>
-            ${html(status.label)}
+          <button class="status" data-more-info="${html(connection.id || climate.id)}" ${connection.id || climate.id ? "" : "disabled"}>
+            <span></span>${html(status)}
           </button>
         </div>
-        <div class="temperature-row">
-          <button class="temperature-main" data-more-info="${html(climate.id || "")}" ${hasClimate ? "" : "disabled"}>
+        <div class="temperature">
+          <div class="target">
             <ha-icon icon="mdi:water-thermometer"></ha-icon>
-            <span>
-              <strong>${html(targetText)}</strong>
-              <small>Solltemperatur - ${html(mode)}</small>
-            </span>
-          </button>
-          <div class="temperature-now">
-            <span>Aktuell</span>
-            <strong>${html(currentText)}</strong>
+            <strong>${target === null ? "--" : `${formatNumber(target)} C`}</strong>
+            <small>Solltemperatur</small>
           </div>
+          <button class="current" data-more-info="${html(outlet.id || climate.id)}" ${outlet.id || climate.id ? "" : "disabled"}>
+            <span>Aktuell</span>
+            <strong>${current === null ? "--" : `${formatNumber(current)} C`}</strong>
+          </button>
         </div>
-        ${this._config.enable_actions ? this._renderTemperatureActions(climate) : ""}
-        <div class="metrics">
-          ${this._metric("water_flow")}
-          ${this._metric("power")}
-          ${this._metric("inlet_temperature")}
-          ${this._metric("outlet_temperature")}
+        ${this._renderTemperatureActions(climate)}
+        <div class="chips">
+          ${MAIN_ENTITIES.map((key) => this._renderChip(key)).join("")}
         </div>
       </section>
     `;
   }
+
   _renderTemperatureActions(climate) {
-    if (!climate.id) return "";
-    const disabled = climate.available ? "" : "disabled";
-    const hvacIcon = climate.stateObj?.state === "off" ? "mdi:power" : "mdi:power-standby";
+    if (!this._config.enable_actions || !climate.id || !climate.stateObj) return "";
     return `
-      <div class="temperature-actions">
-        <button ${disabled} data-temp-delta="${-Math.abs(this._config.temperature_step)}" data-entity="${html(climate.id)}" title="Temperatur senken">
+      <div class="actions">
+        <button class="icon action" data-temp-delta="${-this._config.temperature_step}" data-entity="${html(climate.id)}">
           <ha-icon icon="mdi:minus"></ha-icon>
         </button>
-        <button ${disabled} data-temp-delta="${Math.abs(this._config.temperature_step)}" data-entity="${html(climate.id)}" title="Temperatur erhoehen">
+        <button class="icon action" data-temp-delta="${this._config.temperature_step}" data-entity="${html(climate.id)}">
           <ha-icon icon="mdi:plus"></ha-icon>
         </button>
-        <button ${disabled} data-hvac-toggle="${html(climate.id)}" title="Heizung umschalten">
-          <ha-icon icon="${html(hvacIcon)}"></ha-icon>
-        </button>
-        <button ${disabled} data-more-info="${html(climate.id)}" title="Details">
+        <button class="icon" data-more-info="${html(climate.id)}">
           <ha-icon icon="mdi:dots-horizontal"></ha-icon>
         </button>
       </div>
     `;
   }
+
   _renderControls() {
-    const primary = [
-      "eco_mode",
-      "bath_fill",
-      "maximum_active",
-      "brush_timer_activation",
-      "shower_timer_activation"
-    ].map((key) => this._toggleTile(key)).join("");
-    const wellness = [
-      "wellness_cold_prevention",
-      "winter_refresh",
-      "summer_fitness",
-      "circulation_support"
-    ].map((key) => this._toggleTile(key, true)).join("");
-    const settings = [
-      "bath_fill_target_volume",
-      "bath_fill_remaining_volume",
-      "maximum_temperature",
-      "eco_flow_limit",
-      "brush_timer_duration",
-      "shower_timer_duration",
-      "brush_timer_remaining",
-      "shower_timer_remaining"
-    ].map((key) => this._infoTile(key)).join("");
-    const memories = Array.from({ length: this._config.memory_slots }, (_, index) => this._memoryTile(index + 1)).join("");
-    const content = [primary, wellness, settings, memories].some(Boolean);
-    if (!content) return "";
-    return `
-      <section class="section">
-        ${this._sectionTitle("mdi:tune-variant", "Steuerung")}
-        ${primary ? `<div class="action-grid">${primary}</div>` : ""}
-        ${settings ? `<div class="info-grid">${settings}</div>` : ""}
-        ${wellness ? `<div class="wellness-grid">${wellness}</div>` : ""}
-        ${memories ? `<div class="memory-grid">${memories}</div>` : ""}
-      </section>
-    `;
+    return this._renderSection("Steuerung", "mdi:tune-variant", CONTROL_ENTITIES);
   }
-  _renderConsumption() {
-    const lastUsage = [
-      "last_usage_water",
-      "last_usage_energy",
-      "last_usage_time",
-      "last_usage_cost"
-    ].map((key) => this._infoTile(key)).join("");
-    const totals = [
-      "water_consumption_week",
-      "energy_consumption_week",
-      "saving_monitor_possible_value",
-      "saving_monitor_real_value"
-    ].map((key) => this._infoTile(key)).join("");
-    if (!lastUsage && !totals) return "";
-    return `
-      <section class="section">
-        ${this._sectionTitle("mdi:chart-line", "Verbrauch")}
-        ${lastUsage ? `<div class="info-grid">${lastUsage}</div>` : ""}
-        ${totals ? `<div class="info-grid">${totals}</div>` : ""}
-      </section>
-    `;
-  }
+
   _renderMedia() {
-    const radio = this._entity("radio");
-    const weather = this._entity("weather");
-    const radioHtml = this._visible(radio) ? this._renderRadio(radio) : "";
-    const weatherHtml = this._visible(weather) ? this._renderWeather(weather) : "";
-    if (!radioHtml && !weatherHtml) return "";
+    return this._renderSection("Radio und Wetter", "mdi:radio-tower", ["radio", "weather"]);
+  }
+
+  _renderSection(title, icon, keys) {
+    const cards = keys.map((key) => this._renderTile(key)).filter(Boolean).join("");
+    if (!cards) return "";
     return `
       <section class="section">
-        ${this._sectionTitle("mdi:radio-tower", "Wetter und Radio")}
-        <div class="media-grid">${weatherHtml}${radioHtml}</div>
+        <div class="section-title"><ha-icon icon="${html(icon)}"></ha-icon><span>${html(title)}</span></div>
+        <div class="tiles">${cards}</div>
       </section>
     `;
   }
-  _renderDiagnostics() {
-    const rows = [
-      "temperature_error_status",
-      "connection_state",
-      "reconnect_count",
-      "last_reconnect_reason",
-      "device_info"
-    ].map((key) => this._diagnosticRow(key)).join("");
-    if (!rows) return "";
-    return `
-      <section class="section">
-        ${this._sectionTitle("mdi:heart-pulse", "Diagnose")}
-        <div class="diagnostics">${rows}</div>
-      </section>
-    `;
-  }
-  _renderRadio(entity) {
-    const state = entity.stateObj?.state || "--";
-    const station = entity.stateObj?.attributes?.media_title || entity.stateObj?.attributes?.source || entity.stateObj?.attributes?.media_artist || "Radio";
-    const isPlaying = state === "playing";
-    const disabled = entity.available ? "" : "disabled";
-    return `
-      <article class="large-tile">
-        <button class="large-main" data-more-info="${html(entity.id || "")}" ${entity.id ? "" : "disabled"}>
-          <ha-icon icon="mdi:radio"></ha-icon>
-          <span>
-            <strong>${html(station)}</strong>
-            <small>${html(state)}</small>
-          </span>
-        </button>
-        ${this._config.enable_actions ? `
-          <div class="inline-actions">
-            <button ${disabled} data-media-action="previous" data-entity="${html(entity.id || "")}" title="Vorheriger Sender"><ha-icon icon="mdi:skip-previous"></ha-icon></button>
-            <button ${disabled} data-media-action="${isPlaying ? "pause" : "play"}" data-entity="${html(entity.id || "")}" title="Play/Pause"><ha-icon icon="${isPlaying ? "mdi:pause" : "mdi:play"}"></ha-icon></button>
-            <button ${disabled} data-media-action="next" data-entity="${html(entity.id || "")}" title="Naechster Sender"><ha-icon icon="mdi:skip-next"></ha-icon></button>
-          </div>
-        ` : ""}
-      </article>
-    `;
-  }
-  _renderWeather(entity) {
-    const condition = entity.stateObj?.state || "--";
-    const temperature = this._weatherTemperature(entity.stateObj);
-    const location = entity.stateObj?.attributes?.location || entity.stateObj?.attributes?.location_name || entity.stateObj?.attributes?.friendly_name || "Wetter";
-    return `
-      <article class="large-tile">
-        <button class="large-main" data-more-info="${html(entity.id || "")}" ${entity.id ? "" : "disabled"}>
-          <ha-icon icon="${html(this._weatherIcon(condition))}"></ha-icon>
-          <span>
-            <strong>${html(temperature || condition)}</strong>
-            <small>${html(location)}</small>
-          </span>
-        </button>
-      </article>
-    `;
-  }
-  _memoryTile(slot) {
-    const button = this._entity(`temperature_memory_${slot}`);
-    const temperature = this._entity(`temperature_memory_${slot}_temperature`);
-    if (!this._visible(button) && !this._visible(temperature)) return "";
-    const value = this._stateText(temperature, "--");
-    const disabled = button.available ? "" : "disabled";
-    return `
-      <button class="memory-tile" ${disabled} data-press="${html(button.id || "")}" title="Speicher ${slot}">
-        <ha-icon icon="${html(ENTITY_DEFINITIONS[`temperature_memory_${slot}`].icon)}"></ha-icon>
-        <span>Speicher ${slot}</span>
-        <strong>${html(value)}</strong>
-      </button>
-    `;
-  }
-  _toggleTile(key, small = false) {
+
+  _renderChip(key) {
     const entity = this._entity(key);
     if (!this._visible(entity)) return "";
-    const def = ENTITY_DEFINITIONS[key];
-    const active = ["on", "heat", "playing"].includes(String(entity.stateObj?.state));
-    const disabled = entity.available ? "" : "disabled";
-    const action = this._config.enable_actions ? `data-toggle="${html(entity.id || "")}"` : `data-more-info="${html(entity.id || "")}"`;
+    const def = ENTITY_DEFS[key];
     return `
-      <button class="action-tile ${small ? "small" : ""} ${active ? "active" : ""}" ${disabled} ${action}>
+      <button class="chip" data-more-info="${html(entity.id)}">
         <ha-icon icon="${html(def.icon)}"></ha-icon>
         <span>${html(def.label)}</span>
-        <strong>${html(active ? "An" : this._stateText(entity, "--"))}</strong>
+        <strong>${html(this._stateText(entity))}</strong>
       </button>
     `;
   }
-  _infoTile(key) {
+
+  _renderTile(key) {
     const entity = this._entity(key);
     if (!this._visible(entity)) return "";
-    const def = ENTITY_DEFINITIONS[key];
+    const def = ENTITY_DEFS[key];
+    const on = ["on", "heat", "connected"].includes(String(entity.stateObj?.state).toLowerCase());
+    const actionAttr = this._config.enable_actions && def.action === "toggle"
+      ? `data-toggle="${html(entity.id)}"`
+      : `data-more-info="${html(entity.id)}"`;
     return `
-      <button class="info-tile" data-more-info="${html(entity.id || "")}">
+      <button class="tile ${on ? "on" : ""}" ${actionAttr}>
         <ha-icon icon="${html(def.icon)}"></ha-icon>
         <span>${html(def.label)}</span>
-        <strong>${html(this._stateText(entity, "--"))}</strong>
+        <strong>${html(this._stateText(entity))}</strong>
       </button>
     `;
   }
-  _metric(key) {
-    const entity = this._entity(key);
-    if (!this._visible(entity)) return "";
-    const def = ENTITY_DEFINITIONS[key];
-    return `
-      <button class="metric" data-more-info="${html(entity.id || "")}">
-        <ha-icon icon="${html(def.icon)}"></ha-icon>
-        <span>${html(def.label)}</span>
-        <strong>${html(this._stateText(entity, "--"))}</strong>
-      </button>
-    `;
-  }
-  _diagnosticRow(key) {
-    const entity = this._entity(key);
-    if (!this._visible(entity)) return "";
-    const def = ENTITY_DEFINITIONS[key];
-    return `
-      <button class="diagnostic-row" data-more-info="${html(entity.id || "")}">
-        <ha-icon icon="${html(def.icon)}"></ha-icon>
-        <span>${html(def.label)}</span>
-        <strong>${html(this._stateText(entity, "--"))}</strong>
-      </button>
-    `;
-  }
-  _sectionTitle(icon, label) {
-    return `
-      <div class="section-title">
-        <ha-icon icon="${html(icon)}"></ha-icon>
-        <span>${html(label)}</span>
-      </div>
-    `;
-  }
-  _entity(key) {
-    const def = ENTITY_DEFINITIONS[key];
-    if (!def) return { id: "", stateObj: void 0, available: false, definition: void 0 };
-    const override = this._configuredEntity(def);
-    if (override) {
-      const stateObj = this._hass?.states?.[override];
-      return {
-        id: override,
-        stateObj,
-        available: !isUnavailableState(stateObj),
-        definition: def
-      };
-    }
-    const candidates = this._candidateIds(def);
-    const exact = candidates.find((entityId) => this._hass?.states?.[entityId]);
-    if (exact) {
-      const stateObj = this._hass.states[exact];
-      return {
-        id: exact,
-        stateObj,
-        available: !isUnavailableState(stateObj),
-        definition: def
-      };
-    }
-    if (this._config.auto_discover && this._hass?.states) {
-      const discovered = this._discoverEntity(def);
-      if (discovered) return discovered;
-    }
-    const fallback = candidates[0] || "";
-    return {
-      id: fallback,
-      stateObj: void 0,
-      available: false,
-      definition: def
-    };
-  }
-  _configuredEntity(def) {
-    for (const key of def.configKeys || []) {
-      const value = this._config[key];
-      if (typeof value === "string" && value.includes(".")) return value.trim();
-    }
-    return null;
-  }
-  _candidateIds(def) {
-    return this._candidateObjectIds(def).map((objectId) => `${def.domain}.${objectId}`);
-  }
-  _candidateObjectIds(def) {
-    const prefix = this._prefix();
-    return (def.objectIds || []).map((objectId) => objectId.replaceAll("{p}", prefix));
-  }
-  _discoverEntity(def) {
-    const prefix = this._prefix();
-    const expectedObjectIds = this._candidateObjectIds(def);
-    const expectedObjectIdSet = new Set(expectedObjectIds);
-    const expectedSuffixes = new Set(expectedObjectIds.map((objectId) => objectId.startsWith(`${prefix}_`) ? objectId.slice(prefix.length + 1) : objectId));
-    const entries = Object.entries(this._hass.states).filter(([entityId]) => entityId.startsWith(`${def.domain}.`));
-    const scored = entries.map(([entityId, stateObj]) => {
-      const objectId = entityId.slice(def.domain.length + 1);
-      const name = stateObj?.attributes?.friendly_name || "";
-      const haystack = normalizeText(`${objectId} ${name}`);
-      const objectIdNormalized = normalizeText(objectId);
-      let score = 0;
-      let strongMatch = false;
-      if (expectedObjectIdSet.has(objectId)) {
-        strongMatch = true;
-        score += 100;
-      }
-      for (const suffix of expectedSuffixes) {
-        const normalizedSuffix = normalizeText(suffix);
-        if (objectIdNormalized === normalizedSuffix || objectIdNormalized.endsWith(`_${normalizedSuffix}`)) {
-          strongMatch = true;
-          score += 70;
-          break;
-        }
-      }
-      if ((def.terms || []).some((term) => termMatches(haystack, term))) {
-        strongMatch = true;
-        score += 45;
-      }
-      if (!strongMatch) return { entityId, stateObj, score: 0 };
-      score += entityHintScore(def, stateObj);
-      if (objectId.startsWith(`${prefix}_`)) score += 8;
-      if (objectId.includes(prefix)) score += 3;
-      if (haystack.includes("dhe")) score += 2;
-      if (!isUnavailableState(stateObj)) score += 1;
-      return { entityId, stateObj, score };
-    }).filter((item) => item.score >= 45).sort((a, b) => b.score - a.score);
-    const best = scored[0];
-    if (!best) return null;
-    return {
-      id: best.entityId,
-      stateObj: best.stateObj,
-      available: !isUnavailableState(best.stateObj),
-      definition: def
-    };
-  }
-  _prefix() {
-    return slug(this._config.entity_prefix || DEFAULT_CONFIG.entity_prefix) || DEFAULT_CONFIG.entity_prefix;
-  }
-  _visible(entity) {
-    if (!entity?.id) return false;
-    if (entity.stateObj && entity.available) return true;
-    return Boolean(this._config.show_unavailable && entity.id);
-  }
-  _stateText(entity, fallback = "n/a") {
-    if (!entity?.stateObj) return fallback;
-    if (isUnavailableState(entity.stateObj)) return "nicht verfuegbar";
-    const unit = entity.stateObj.attributes?.unit_of_measurement;
-    return `${entity.stateObj.state}${unit ? ` ${unit}` : ""}`;
-  }
-  _status() {
-    const connection = this._entity("connection_state");
-    if (connection.stateObj) {
-      const state = String(connection.stateObj.state || "");
-      return {
-        label: state || "unbekannt",
-        entityId: connection.id,
-        tone: /connected|online|ok|verbunden/i.test(state) ? "ok" : /reconnect|start|pair/i.test(state) ? "warn" : "bad"
-      };
-    }
-    const climate = this._entity("climate");
-    if (climate.available) {
-      return { label: "verbunden", entityId: climate.id, tone: "ok" };
-    }
-    if (climate.stateObj) {
-      return { label: "nicht verfuegbar", entityId: climate.id, tone: "bad" };
-    }
-    return { label: "nicht gefunden", entityId: "", tone: "bad" };
-  }
-  _weatherTemperature(stateObj) {
-    const value = numberValue(
-      stateObj?.attributes?.temperature ?? stateObj?.attributes?.native_temperature ?? stateObj?.attributes?.apparent_temperature
-    );
-    return value === null ? "" : `${value.toFixed(value % 1 ? 1 : 0)} C`;
-  }
-  _weatherIcon(condition) {
-    switch (condition) {
-      case "sunny":
-        return "mdi:weather-sunny";
-      case "cloudy":
-        return "mdi:weather-cloudy";
-      case "rainy":
-      case "pouring":
-        return "mdi:weather-pouring";
-      case "partlycloudy":
-        return "mdi:weather-partly-cloudy";
-      default:
-        return "mdi:weather-partly-cloudy";
-    }
-  }
+
   _bindEvents() {
-    this.shadowRoot.querySelectorAll("[data-more-info]").forEach((element) => {
-      element.addEventListener("click", (event) => {
-        const entityId = event.currentTarget.dataset.moreInfo;
+    this.shadowRoot.querySelectorAll("[data-more-info]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const entityId = button.dataset.moreInfo;
         if (entityId) this._moreInfo(entityId);
       });
     });
-    this.shadowRoot.querySelectorAll("[data-toggle]").forEach((element) => {
-      element.addEventListener("click", (event) => {
-        const entityId = event.currentTarget.dataset.toggle;
+
+    this.shadowRoot.querySelectorAll("[data-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const entityId = button.dataset.toggle;
         if (entityId) this._call("homeassistant", "toggle", { entity_id: entityId });
       });
     });
-    this.shadowRoot.querySelectorAll("[data-press]").forEach((element) => {
-      element.addEventListener("click", (event) => {
-        const entityId = event.currentTarget.dataset.press;
-        if (entityId) this._call("button", "press", { entity_id: entityId });
-      });
-    });
-    this.shadowRoot.querySelectorAll("[data-temp-delta]").forEach((element) => {
-      element.addEventListener("click", (event) => {
-        const target = event.currentTarget;
-        this._changeTemperature(target.dataset.entity, Number(target.dataset.tempDelta));
-      });
-    });
-    this.shadowRoot.querySelectorAll("[data-hvac-toggle]").forEach((element) => {
-      element.addEventListener("click", (event) => {
-        this._toggleHvac(event.currentTarget.dataset.hvacToggle);
-      });
-    });
-    this.shadowRoot.querySelectorAll("[data-media-action]").forEach((element) => {
-      element.addEventListener("click", (event) => {
-        const target = event.currentTarget;
-        this._mediaAction(target.dataset.entity, target.dataset.mediaAction);
+
+    this.shadowRoot.querySelectorAll("[data-temp-delta]").forEach((button) => {
+      button.addEventListener("click", () => {
+        this._changeTemperature(button.dataset.entity, numberValue(button.dataset.tempDelta));
       });
     });
   }
+
+  _entity(key) {
+    const def = ENTITY_DEFS[key];
+    if (!def) return emptyEntity();
+
+    const override = this._config[def.config];
+    if (typeof override === "string" && override.includes(".")) {
+      return this._makeEntity(override, def);
+    }
+
+    for (const candidate of this._candidateIds(def)) {
+      if (this._hass?.states?.[candidate]) return this._makeEntity(candidate, def);
+    }
+
+    const fallback = this._safeSuffixMatch(def);
+    if (fallback) return this._makeEntity(fallback, def);
+    return emptyEntity(def);
+  }
+
+  _candidateIds(def) {
+    const prefix = this._prefix();
+    return def.keys.map((key) => `${def.domain}.${prefix}_${key}`);
+  }
+
+  _safeSuffixMatch(def) {
+    if (!this._hass?.states) return null;
+    const prefix = this._prefix();
+    const wanted = new Set(def.keys.map((key) => `${prefix}_${key}`));
+    const matches = Object.keys(this._hass.states).filter((entityId) => {
+      if (!entityId.startsWith(`${def.domain}.`)) return false;
+      const objectId = entityId.slice(def.domain.length + 1);
+      if (!wanted.has(objectId)) return false;
+      const registry = this._hass.entities?.[entityId];
+      return !registry || registry.platform === INTEGRATION_DOMAIN;
+    });
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  _makeEntity(entityId, def) {
+    const stateObj = this._hass?.states?.[entityId];
+    return {
+      id: entityId,
+      stateObj,
+      available: !isUnavailable(stateObj),
+      definition: def,
+    };
+  }
+
+  _prefix() {
+    return normalizePrefix(this._config.entity_prefix);
+  }
+
+  _visible(entity) {
+    return Boolean(entity?.id && entity.stateObj && entity.available);
+  }
+
+  _stateText(entity) {
+    if (!entity?.stateObj) return "--";
+    if (isUnavailable(entity.stateObj)) return "n/a";
+    const state = String(entity.stateObj.state ?? "");
+    const unit = entity.stateObj.attributes?.unit_of_measurement;
+    if (state === "on") return "An";
+    if (state === "off") return "Aus";
+    return `${state}${unit ? ` ${unit}` : ""}`;
+  }
+
   _changeTemperature(entityId, delta) {
     const stateObj = this._hass?.states?.[entityId];
     const current = numberValue(stateObj?.attributes?.temperature);
-    if (!entityId || current === null || !Number.isFinite(delta)) return;
-    const min = numberValue(stateObj?.attributes?.min_temp) ?? 20;
-    const max = numberValue(stateObj?.attributes?.max_temp) ?? 60;
-    const next = clamp(current + delta, min, max);
+    if (!entityId || current === null || delta === null) return;
+    const min = numberValue(stateObj.attributes?.min_temp) ?? 20;
+    const max = numberValue(stateObj.attributes?.max_temp) ?? 60;
+    const next = Math.max(min, Math.min(max, current + delta));
     this._call("climate", "set_temperature", { entity_id: entityId, temperature: next });
   }
-  _toggleHvac(entityId) {
-    const stateObj = this._hass?.states?.[entityId];
-    if (!entityId || !stateObj) return;
-    const hvacMode = stateObj.state === "off" ? "heat" : "off";
-    this._call("climate", "set_hvac_mode", { entity_id: entityId, hvac_mode: hvacMode });
-  }
-  _mediaAction(entityId, action) {
-    if (!entityId) return;
-    const serviceMap = {
-      play: "media_play",
-      pause: "media_pause",
-      next: "media_next_track",
-      previous: "media_previous_track"
-    };
-    const service = serviceMap[action];
-    if (service) this._call("media_player", service, { entity_id: entityId });
-  }
+
   _call(domain, service, data) {
-    if (!this._hass) return;
-    const result = this._hass.callService(domain, service, data);
+    const result = this._hass?.callService?.(domain, service, data);
     if (result && typeof result.catch === "function") {
-      result.catch((err) => {
-        console.error("DHE Connect Card action failed", domain, service, err);
-      });
+      result.catch((err) => console.error("DHE Connect Card service call failed", err));
     }
   }
+
   _moreInfo(entityId) {
     this.dispatchEvent(new CustomEvent("hass-more-info", {
       bubbles: true,
       composed: true,
-      detail: { entityId }
+      detail: { entityId },
     }));
   }
-  _style(accent) {
+
+  _styles(accent) {
     return `
       <style>
         :host {
           display: block;
           --dhe-accent: ${accent.color};
-          --dhe-accent-contrast: ${accent.contrast};
-          --dhe-soft: color-mix(in srgb, var(--dhe-accent) 12%, var(--card-background-color, #fff));
-          --dhe-border: color-mix(in srgb, var(--divider-color) 82%, var(--dhe-accent));
+          --dhe-soft: ${accent.soft};
         }
 
         * {
@@ -1117,549 +814,327 @@ var DheConnectCard = class extends HTMLElement {
         ha-card {
           overflow: hidden;
           color: var(--primary-text-color);
+          background: var(--ha-card-background, var(--card-background-color));
         }
 
         button {
-          min-width: 0;
           border: 0;
           color: inherit;
           font: inherit;
           cursor: pointer;
+          min-width: 0;
         }
 
-        button[disabled] {
+        button:disabled {
           cursor: default;
-          opacity: 0.55;
-          pointer-events: none;
         }
 
         .hero {
-          display: grid;
-          gap: 14px;
-          padding: 16px;
-          border-bottom: 1px solid var(--divider-color);
+          padding: 18px;
           background:
-            linear-gradient(135deg, color-mix(in srgb, var(--dhe-accent) 14%, transparent), transparent 46%),
-            var(--card-background-color, #fff);
+            linear-gradient(135deg, var(--dhe-soft), transparent 58%),
+            var(--ha-card-background, var(--card-background-color));
+          border-bottom: 1px solid var(--divider-color);
         }
 
-        .hero-head,
-        .temperature-row,
-        .metrics,
-        .temperature-actions,
-        .inline-actions,
-        .section-title,
-        .diagnostic-row,
-        .large-main {
+        .hero-top,
+        .temperature,
+        .actions,
+        .chips,
+        .section-title {
           display: flex;
           align-items: center;
+          gap: 10px;
         }
 
-        .hero-head {
+        .hero-top {
           justify-content: space-between;
-          gap: 12px;
         }
 
-        .title-button {
+        .title {
           display: grid;
           gap: 3px;
-          background: transparent;
           padding: 0;
           text-align: left;
+          background: transparent;
         }
 
-        .title-button span {
+        .title span,
+        .section-title {
           color: var(--secondary-text-color);
-          font-size: 11px;
+          font-size: 12px;
           font-weight: 700;
+          text-transform: uppercase;
         }
 
-        .title-button strong {
-          font-size: 20px;
+        .title strong {
+          font-size: 22px;
           line-height: 1.15;
         }
 
         .status {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          max-width: 48%;
-          border: 1px solid var(--dhe-border);
-          border-radius: 999px;
-          padding: 7px 10px;
-          background: color-mix(in srgb, var(--card-background-color, #fff) 86%, var(--dhe-accent));
-          font-size: 12px;
+          gap: 7px;
+          max-width: 45%;
+          padding: 8px 12px;
+          overflow: hidden;
+          border: 1px solid color-mix(in srgb, var(--dhe-accent) 65%, var(--divider-color));
+          border-radius: 18px;
+          background: var(--dhe-soft);
           white-space: nowrap;
+          text-overflow: ellipsis;
         }
 
-        .dot {
-          width: 9px;
-          height: 9px;
+        .status span {
+          width: 8px;
+          height: 8px;
           border-radius: 50%;
           background: var(--dhe-accent);
+          flex: 0 0 auto;
         }
 
-        .hero.bad .dot {
-          background: var(--error-color, #db4437);
-        }
-
-        .hero.warn .dot {
-          background: var(--warning-color, #f4b400);
-        }
-
-        .temperature-row {
+        .temperature {
           justify-content: space-between;
-          gap: 12px;
+          margin-top: 18px;
         }
 
-        .temperature-main {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 0;
-          background: transparent;
-          text-align: left;
-        }
-
-        .temperature-main ha-icon {
-          width: 42px;
-          height: 42px;
-          color: var(--dhe-accent);
-        }
-
-        .temperature-main span,
-        .large-main span {
+        .target {
           display: grid;
-          min-width: 0;
+          grid-template-columns: auto auto;
+          gap: 2px 10px;
+          align-items: center;
         }
 
-        .temperature-main strong {
+        .target ha-icon {
+          color: var(--dhe-accent);
+          grid-row: span 2;
+        }
+
+        .target strong {
           font-size: 40px;
           line-height: 1;
         }
 
-        .temperature-main small,
-        .temperature-now span,
-        .metric span,
-        .info-tile span,
-        .action-tile span,
-        .large-main small,
-        .diagnostic-row span,
-        .section-title {
+        .target small {
           color: var(--secondary-text-color);
         }
 
-        .temperature-now {
+        .current {
           display: grid;
-          gap: 3px;
-          justify-items: end;
-          min-width: 80px;
-          border: 1px solid var(--dhe-border);
-          border-radius: 8px;
-          padding: 10px 12px;
-          background: color-mix(in srgb, var(--card-background-color, #fff) 88%, var(--dhe-soft));
-        }
-
-        .temperature-now strong {
-          font-size: 18px;
-        }
-
-        .temperature-actions {
-          gap: 8px;
-        }
-
-        .temperature-actions button,
-        .inline-actions button {
-          display: inline-grid;
-          place-items: center;
-          width: 38px;
-          height: 38px;
-          border: 1px solid var(--dhe-border);
-          border-radius: 8px;
-          background: var(--card-background-color, #fff);
-        }
-
-        .temperature-actions button:first-child,
-        .temperature-actions button:nth-child(2),
-        .inline-actions button:nth-child(2) {
-          background: var(--dhe-accent);
-          border-color: var(--dhe-accent);
-          color: white;
-        }
-
-        .metrics {
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .metric {
-          display: inline-flex;
-          align-items: center;
-          gap: 7px;
-          min-height: 34px;
-          max-width: 100%;
-          border: 1px solid var(--dhe-border);
-          border-radius: 999px;
-          padding: 6px 10px;
-          background: color-mix(in srgb, var(--card-background-color, #fff) 90%, var(--dhe-soft));
-        }
-
-        .metric ha-icon,
-        .section-title ha-icon,
-        .diagnostic-row ha-icon,
-        .info-tile ha-icon,
-        .large-main ha-icon {
-          width: 19px;
-          height: 19px;
-          color: var(--dhe-accent);
-        }
-
-        .metric span,
-        .metric strong {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          font-size: 12px;
-        }
-
-        .body {
-          display: grid;
-          gap: 17px;
-          padding: 16px;
-        }
-
-        .section {
-          display: grid;
-          gap: 10px;
-        }
-
-        .section-title {
-          gap: 8px;
-          font-size: 13px;
-          font-weight: 750;
-          text-transform: uppercase;
-        }
-
-        .action-grid,
-        .info-grid,
-        .wellness-grid,
-        .memory-grid,
-        .media-grid {
-          display: grid;
-          gap: 8px;
-        }
-
-        .action-grid {
-          grid-template-columns: repeat(5, minmax(0, 1fr));
-        }
-
-        .info-grid,
-        .media-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .wellness-grid {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-
-        .memory-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .action-tile,
-        .info-tile,
-        .memory-tile,
-        .large-tile,
-        .diagnostic-row {
-          min-width: 0;
+          gap: 4px;
+          min-width: 78px;
+          padding: 12px;
           border: 1px solid var(--divider-color);
           border-radius: 8px;
-          background: color-mix(in srgb, var(--card-background-color, #fff) 94%, var(--dhe-soft));
-        }
-
-        .action-tile,
-        .info-tile,
-        .memory-tile {
-          display: grid;
-          gap: 6px;
-          min-height: 78px;
-          padding: 10px;
-          text-align: left;
-        }
-
-        .action-tile {
-          justify-items: center;
+          background: transparent;
           text-align: center;
         }
 
-        .action-tile.active {
-          border-color: color-mix(in srgb, var(--dhe-accent) 72%, var(--divider-color));
-          background: color-mix(in srgb, var(--dhe-accent) 14%, var(--card-background-color, #fff));
+        .current span {
+          color: var(--secondary-text-color);
         }
 
-        .action-tile.small,
-        .memory-tile {
-          min-height: 66px;
+        .current strong {
+          font-size: 20px;
         }
 
-        .action-tile ha-icon,
-        .memory-tile ha-icon {
+        .actions {
+          margin-top: 14px;
+        }
+
+        .icon {
+          width: 42px;
+          height: 42px;
+          display: inline-grid;
+          place-items: center;
+          border: 1px solid var(--divider-color);
+          border-radius: 8px;
+          background: var(--card-background-color);
+        }
+
+        .icon.action {
+          background: var(--dhe-accent);
+          color: white;
+          border-color: var(--dhe-accent);
+        }
+
+        .chips {
+          flex-wrap: wrap;
+          margin-top: 14px;
+        }
+
+        .chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          max-width: 100%;
+          padding: 7px 10px;
+          border: 1px solid color-mix(in srgb, var(--dhe-accent) 55%, var(--divider-color));
+          border-radius: 18px;
+          background: transparent;
+        }
+
+        .chip ha-icon,
+        .tile ha-icon,
+        .section-title ha-icon {
           color: var(--dhe-accent);
         }
 
-        .action-tile span,
-        .action-tile strong,
-        .info-tile span,
-        .info-tile strong,
-        .memory-tile span,
-        .memory-tile strong,
-        .diagnostic-row strong,
-        .large-main strong,
-        .large-main small {
-          min-width: 0;
-          max-width: 100%;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+        .chip strong {
+          font-weight: 700;
         }
 
-        .action-tile span,
-        .action-tile strong,
-        .info-tile span,
-        .memory-tile span {
-          font-size: 12px;
+        .body {
+          padding: 0 16px 16px;
         }
 
-        .info-tile strong,
-        .memory-tile strong {
-          font-size: 16px;
+        .section {
+          padding-top: 16px;
         }
 
-        .large-tile {
+        .section-title {
+          margin-bottom: 10px;
+        }
+
+        .tiles {
           display: grid;
-          gap: 10px;
-          padding: 12px;
+          grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+          gap: 8px;
         }
 
-        .large-main {
-          gap: 10px;
-          padding: 0;
+        .tile {
+          display: grid;
+          gap: 8px;
+          min-height: 94px;
+          padding: 12px;
+          border: 1px solid var(--divider-color);
+          border-radius: 8px;
           background: transparent;
           text-align: left;
         }
 
-        .large-main ha-icon {
-          width: 32px;
-          height: 32px;
+        .tile.on {
+          border-color: color-mix(in srgb, var(--dhe-accent) 72%, var(--divider-color));
+          background: var(--dhe-soft);
         }
 
-        .large-main strong {
-          font-size: 16px;
+        .tile span {
+          color: var(--secondary-text-color);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
-        .inline-actions {
-          gap: 6px;
-        }
-
-        .diagnostics {
-          display: grid;
-          gap: 6px;
-        }
-
-        .diagnostic-row {
-          gap: 9px;
-          width: 100%;
-          padding: 10px 11px;
-          text-align: left;
-        }
-
-        .diagnostic-row span {
-          flex: 1;
-        }
-
-        .compact .hero {
-          gap: 10px;
-          padding: 13px;
+        .tile strong {
+          align-self: end;
+          overflow-wrap: anywhere;
         }
 
         .compact .body {
-          gap: 12px;
-          padding: 12px;
+          padding-bottom: 12px;
         }
 
-        .compact .temperature-main strong {
-          font-size: 34px;
+        .compact .target strong {
+          font-size: 32px;
         }
 
-        @media (max-width: 540px) {
-          .hero-head,
-          .temperature-row {
-            align-items: stretch;
-          }
-
-          .status {
-            max-width: none;
-          }
-
-          .temperature-main strong {
-            font-size: 34px;
-          }
-
-          .action-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-
-          .info-grid,
-          .wellness-grid,
-          .memory-grid,
-          .media-grid {
-            grid-template-columns: 1fr;
-          }
+        .compact .tiles {
+          grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
         }
       </style>
     `;
   }
-};
-var DheConnectCardEditor = class extends HTMLElement {
+}
+
+class DheConnectCardEditor extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this._handleValueChanged = this._handleValueChanged.bind(this);
+    this._onValueChanged = this._onValueChanged.bind(this);
   }
+
   set hass(hass) {
     this._hass = hass;
-    if (this._form) {
-      this._form.hass = hass;
-      return;
-    }
-    this._render();
+    if (this._form) this._form.hass = hass;
+    else this._render();
   }
+
   setConfig(config) {
-    this._config = migrateConfig(config);
+    this._config = { ...DEFAULT_CONFIG, ...migrateConfig(config) };
     this._render();
   }
+
   _render() {
     if (!this.shadowRoot || !this._config) return;
-    const formConfig = DheConnectCard.getConfigForm();
+    const form = configForm();
     this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-        }
-
-        ha-form {
-          display: block;
-        }
-
-        .error {
-          color: var(--error-color);
-          font-size: 12px;
-          margin-top: 8px;
-        }
-      </style>
+      <style>:host { display: block; }</style>
       <ha-form></ha-form>
-      ${this._error ? `<div class="error">${html(this._error)}</div>` : ""}
     `;
-    const form = this.shadowRoot.querySelector("ha-form");
-    this._form = form;
-    form.hass = this._hass;
-    form.data = this._config;
-    form.schema = formConfig.schema;
-    form.computeLabel = formConfig.computeLabel;
-    form.computeHelper = formConfig.computeHelper;
-    form.addEventListener("value-changed", this._handleValueChanged);
+    this._form = this.shadowRoot.querySelector("ha-form");
+    this._form.hass = this._hass;
+    this._form.data = this._config;
+    this._form.schema = form.schema;
+    this._form.computeLabel = form.computeLabel;
+    this._form.computeHelper = form.computeHelper;
+    this._form.addEventListener("value-changed", this._onValueChanged);
   }
-  _handleValueChanged(event) {
+
+  _onValueChanged(event) {
     event.stopPropagation();
-    const formConfig = DheConnectCard.getConfigForm();
-    const config = migrateConfig({ ...this._config, ...event.detail?.value || {} });
-    try {
-      formConfig.assertConfig?.(config);
-      this._error = "";
-      this._config = config;
-      this.dispatchEvent(new CustomEvent("config-changed", {
-        bubbles: true,
-        composed: true,
-        detail: { config }
-      }));
-    } catch (err) {
-      this._error = err?.message || String(err);
-      this._render();
-    }
+    const config = migrateConfig({ ...this._config, ...(event.detail?.value || {}) });
+    this._config = { ...DEFAULT_CONFIG, ...config };
+    this.dispatchEvent(new CustomEvent("config-changed", {
+      bubbles: true,
+      composed: true,
+      detail: { config },
+    }));
   }
-};
-function entityHintScore(def, stateObj) {
-  if (!stateObj?.attributes) return 0;
-  let score = 0;
-  const deviceClass = normalizeText(stateObj.attributes.device_class);
-  const unit = normalizeUnit(stateObj.attributes.unit_of_measurement);
-  if (def.deviceClasses?.length && deviceClass) {
-    if (def.deviceClasses.some((expected) => normalizeText(expected) === deviceClass)) {
-      score += 14;
-    } else {
-      score -= 35;
-    }
-  }
-  if (def.units?.length && unit) {
-    if (def.units.some((expected) => normalizeUnit(expected) === unit)) {
-      score += 10;
-    } else {
-      score -= 30;
-    }
-  }
-  return score;
 }
-function normalizeUnit(value) {
-  return normalizeText(value).replaceAll(" ", "").replaceAll("\xB0", "").replace("liters", "l").replace("liter", "l").replace("seconds", "s").replace("second", "s").replace("sec", "s");
+
+function emptyEntity(def) {
+  return { id: "", stateObj: undefined, available: false, definition: def };
 }
-function termMatches(haystack, term) {
-  return normalizeText(term).split(/\s+/).filter(Boolean).every((part) => haystack.includes(part));
+
+function formatNumber(value) {
+  if (!Number.isFinite(value)) return String(value);
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
+
 function findPrefixFromHass(hass) {
   const states = hass?.states || {};
-  const climateId = Object.keys(states).find((entityId) => entityId.startsWith("climate.") && (CLIMATE_PREFIX_SUFFIXES.some((suffix2) => entityId.endsWith(suffix2)) || normalizeText(states[entityId]?.attributes?.friendly_name).includes("water heating") || normalizeText(states[entityId]?.attributes?.friendly_name).includes("durchlauferhitzer") || normalizeText(states[entityId]?.attributes?.friendly_name).includes("wasser")));
+  const climateId = Object.keys(states).find((entityId) => {
+    if (!entityId.startsWith("climate.")) return false;
+    const objectId = entityId.slice("climate.".length);
+    return CLIMATE_SUFFIXES.some((suffix) => objectId.endsWith(`_${suffix}`));
+  });
   if (!climateId) return DEFAULT_CONFIG.entity_prefix;
-  const objectId = climateId.replace(/^climate\./, "");
-  const suffix = CLIMATE_PREFIX_SUFFIXES.find((item) => objectId.endsWith(item));
-  return suffix ? objectId.slice(0, -suffix.length) : objectId;
+  return normalizePrefix(climateId.slice("climate.".length));
 }
-if (!customElements.get("dhe-connect-card-form-editor")) {
-  customElements.define("dhe-connect-card-form-editor", DheConnectCardEditor);
+
+if (!customElements.get(EDITOR_TYPE)) {
+  customElements.define(EDITOR_TYPE, DheConnectCardEditor);
 }
+
 if (!customElements.get(CARD_TYPE)) {
   customElements.define(CARD_TYPE, DheConnectCard);
-} else {
-  console.warn(
-    `DHE Connect Card: custom element is already registered. If Home Assistant still shows the old editor, use custom:${CARD_TEST_TYPE} to verify the new bundle.`
-  );
 }
-if (!customElements.get(CARD_TEST_TYPE)) {
-  customElements.define(CARD_TEST_TYPE, DheConnectCard);
-}
+
 window.customCards = window.customCards || [];
-var cardInfo = {
+const cardInfo = {
   type: CARD_TYPE,
   name: "DHE Connect Card",
   preview: true,
-  description: `Dashboard-Karte fuer Stiebel DHE Connect mit GUI-Konfiguration (${CARD_VERSION}).`,
-  documentationURL: "https://github.com/memphi2/dhe-connect-card"
+  description: `GUI-konfigurierbare Karte fuer Stiebel DHE Connect (${CARD_VERSION}).`,
+  documentationURL: "https://github.com/memphi2/dhe-connect-card",
 };
-var existingCardInfo = window.customCards.findIndex((card) => card.type === CARD_TYPE);
-if (existingCardInfo >= 0) {
-  window.customCards[existingCardInfo] = cardInfo;
-} else {
-  window.customCards.push(cardInfo);
-}
-if (!window.customCards.some((card) => card.type === CARD_TEST_TYPE)) {
-  window.customCards.push({
-    ...cardInfo,
-    type: CARD_TEST_TYPE,
-    name: "DHE Connect Card 0.4.2 Test",
-    description: "Test-Alias fuer den neuen Editor, falls der alte Browser-Registry-Eintrag noch aktiv ist."
-  });
-}
+const existing = window.customCards.findIndex((card) => card.type === CARD_TYPE);
+if (existing >= 0) window.customCards[existing] = cardInfo;
+else window.customCards.push(cardInfo);
+
 console.info(
   `%c DHE Connect Card %c ${CARD_VERSION} `,
-  "color: white; background: #0098a6; font-weight: 700;",
-  "color: #0098a6; background: transparent; font-weight: 700;"
+  "color: white; background: #00a6b4; font-weight: 700;",
+  "color: #00a6b4; background: transparent; font-weight: 700;",
 );

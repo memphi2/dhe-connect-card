@@ -1,128 +1,94 @@
 # DHE Connect Card
 
-Eine Lovelace Custom Card fuer die Home-Assistant-Integration
+Eine saubere Lovelace Custom Card fuer
 [`memphi2/ha-dhe-connect`](https://github.com/memphi2/ha-dhe-connect).
 
-Die Karte ist fuer die aktuelle Integration `stiebel_dhe_connect` gebaut. Sie
-nutzt den nativen Home-Assistant-Formular-Editor ueber `getConfigForm()` und
-bringt zusaetzlich einen kompatiblen `getConfigElement()`-Wrapper fuer
-Home-Assistant-Versionen mit altem Editor-Pfad mit.
+Die Card ist auf die aktuelle Integration `stiebel_dhe_connect` auf `main`
+ausgelegt. Stand beim Neuaufbau: Manifest-Version `1.1.0`.
 
-## Stand der Integration
+## Installation mit HACS
 
-Geprueft gegen `memphi2/ha-dhe-connect` auf `main`:
+Dieses Repository in HACS als Custom Repository vom Typ **Dashboard** hinzufuegen
+und installieren.
 
-- Domain: `stiebel_dhe_connect`
-- Aktuelle Manifest-Version: `1.1.0`
-- Wichtige Plattformen: `climate`, `sensor`, `switch`, `number`, `button`,
-  `media_player`, `weather`
-- Wichtige Standard-Entities: Water heating, current water flow, current power
-  consumption, Eco mode, bath fill, radio und weather
-
-## Installation
-
-### HACS
-
-Wenn die Karte ueber HACS installiert ist, liegt die Datei physisch hier:
+HACS legt die Datei physisch hier ab:
 
 ```text
 /config/www/community/dhe-connect-card/dhe-connect-card.js
 ```
 
-Die Ressource in Home Assistant muss dann so lauten:
+Die Dashboard-Ressource muss so lauten:
 
 ```yaml
-url: /hacsfiles/dhe-connect-card/dhe-connect-card.js?v=10
+url: /hacsfiles/dhe-connect-card/dhe-connect-card.js
 type: module
 ```
 
-### Manueller Test
-
-Kopiere nur das gebaute Bundle:
-
-```text
-dist/dhe-connect-card.js
-```
-
-nach einem dieser Ziele:
-
-```text
-/config/www/dhe-connect-card/dhe-connect-card.js
-/config/www/community/dhe-connect-card/dhe-connect-card.js
-```
-
-Passende Ressource in Home Assistant:
+Wenn du manuell genau in `www/community` kopierst, geht alternativ:
 
 ```yaml
-url: /local/dhe-connect-card/dhe-connect-card.js?v=10
+url: /local/community/dhe-connect-card/dhe-connect-card.js?v=1
 type: module
 ```
 
-oder:
-
-```yaml
-url: /local/community/dhe-connect-card/dhe-connect-card.js?v=10
-type: module
-```
-
-Bei jeder neuen Kopie die Version hochzaehlen, z.B. `?v=11`.
-
-Wenn Home Assistant trotz Cache-Buster noch den alten Editor fuer
-`custom:dhe-connect-card` nutzt, ist sehr wahrscheinlich noch eine alte
-Ressource frueher geladen. Zum Gegencheck gibt es den Alias:
-
-```yaml
-type: custom:dhe-connect-card-v042
-```
-
-Dieser Alias wird nur vom neuen Bundle registriert und umgeht einen bereits
-alten Browser-Registry-Eintrag fuer `dhe-connect-card`.
+Wichtig: `/hacsfiles/...` ist eine Home-Assistant/HACS-URL, kein echter Ordner
+im Dateisystem.
 
 ## GUI-Konfiguration
 
-Im Dashboard eine neue Karte vom Typ `DHE Connect Card` hinzufuegen. Die Karte
-wird im visuellen Editor konfiguriert.
+Nach dem Laden der Ressource im Dashboard eine neue Karte vom Typ
+`DHE Connect Card` hinzufuegen.
 
-Die Autodiscovery sucht nach Entities der Integration `stiebel_dhe_connect`.
-Wenn deine Entity-IDs anders heissen, kannst du die wichtigsten Entities direkt
-in der GUI auswaehlen.
+Die Karte bringt beide Editor-Wege mit:
 
-## YAML Beispiel
+- `getConfigForm()` fuer den nativen Home-Assistant-Formular-Editor
+- `getConfigElement()` mit eigenem Editor-Wrapper fuer HA-Versionen, die noch ein
+  Editor-Element mit `setConfig()` erwarten
+
+## YAML-Minimum
 
 ```yaml
 type: custom:dhe-connect-card
-title: DHE Connect
 entity_prefix: dhe_connect
-accent: aqua
-enable_actions: true
-auto_discover: true
-show_controls: true
-show_consumption: true
-show_media: true
-show_diagnostics: true
-temperature_step: 0.5
-memory_slots: 2
 ```
 
-Optionale direkte Entity-Auswahl:
+Der Prefix entspricht dem Entity-Object-ID-Prefix der Integration. Bei
+`sensor.dhe_connect_water_flow` ist der Prefix also `dhe_connect`.
 
-```yaml
-type: custom:dhe-connect-card
-climate_entity: climate.dhe_connect_water_heating
-water_flow_entity: sensor.dhe_connect_current_water_flow
-power_entity: sensor.dhe_connect_current_power_consumption
-eco_mode_entity: switch.dhe_connect_eco_mode
-bath_fill_entity: switch.dhe_connect_bath_fill
-radio_entity: media_player.dhe_connect_radio
-weather_entity: weather.dhe_connect_weather
+Wenn einzelne Entities anders heissen, kannst du sie in der GUI direkt
+auswaehlen. Die Card nutzt fuer automatische Zuordnung nur exakte Keys aus der
+Integration und keine lockere Namenssuche.
+
+## Erwartete Entity-Keys
+
+Die Integration erzeugt Entity-IDs nach dem Muster:
+
+```text
+<domain>.<entity_prefix>_<key>
+```
+
+Beispiele:
+
+```text
+climate.dhe_connect_setpoint
+sensor.dhe_connect_water_flow
+sensor.dhe_connect_power
+switch.dhe_connect_eco_mode
+switch.dhe_connect_bath_fill_active
+number.dhe_connect_bath_fill_target_volume
+media_player.dhe_connect_radio
+weather.dhe_connect_weather
 ```
 
 ## Entwicklung
 
 ```bash
-npm install
 npm run build
-npm run validate:ha-hacs
+npm run validate
 ```
 
-Danach wieder nur `dist/dhe-connect-card.js` nach Home Assistant kopieren.
+Das HACS-Bundle liegt danach unter:
+
+```text
+dist/dhe-connect-card.js
+```
