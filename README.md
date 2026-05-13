@@ -36,7 +36,7 @@ nach:
 Ressource in Home Assistant:
 
 ```yaml
-url: /local/dhe-connect-card/dhe-connect-card.js?v=8
+url: /local/dhe-connect-card/dhe-connect-card.js?v=9
 type: module
 ```
 

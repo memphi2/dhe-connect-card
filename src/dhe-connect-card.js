@@ -1,7 +1,8 @@
-const CARD_VERSION = "0.4.4";
+const CARD_VERSION = "0.4.5";
 const CARD_TYPE = "dhe-connect-card";
 const CARD_TEST_TYPE = "dhe-connect-card-v042";
 const INTEGRATION_DOMAIN = "stiebel_dhe_connect";
+const CLIMATE_PREFIX_SUFFIXES = ["_setpoint", "_water_heating", "_wasser_heating", "_wassererwarmung"];
 
 const DEFAULT_CONFIG = {
   title: "DHE Connect",
@@ -1757,17 +1758,16 @@ function findPrefixFromHass(hass) {
   const climateId = Object.keys(states).find((entityId) => (
     entityId.startsWith("climate.")
     && (
-      entityId.endsWith("_water_heating")
+      CLIMATE_PREFIX_SUFFIXES.some((suffix) => entityId.endsWith(suffix))
       || normalizeText(states[entityId]?.attributes?.friendly_name).includes("water heating")
+      || normalizeText(states[entityId]?.attributes?.friendly_name).includes("durchlauferhitzer")
       || normalizeText(states[entityId]?.attributes?.friendly_name).includes("wasser")
     )
   ));
   if (!climateId) return DEFAULT_CONFIG.entity_prefix;
-  return climateId
-    .replace(/^climate\./, "")
-    .replace(/_water_heating$/, "")
-    .replace(/_wasser_heating$/, "")
-    .replace(/_wassererwarmung$/, "");
+  const objectId = climateId.replace(/^climate\./, "");
+  const suffix = CLIMATE_PREFIX_SUFFIXES.find((item) => objectId.endsWith(item));
+  return suffix ? objectId.slice(0, -suffix.length) : objectId;
 }
 
 if (!customElements.get("dhe-connect-card-form-editor")) {
