@@ -13,7 +13,7 @@ Home-Assistant-Versionen mit altem Editor-Pfad mit.
 Geprueft gegen `memphi2/ha-dhe-connect` auf `main`:
 
 - Domain: `stiebel_dhe_connect`
-- Aktuelle Manifest-Version: `1.0.5`
+- Aktuelle Manifest-Version: `1.1.0`
 - Wichtige Plattformen: `climate`, `sensor`, `switch`, `number`, `button`,
   `media_player`, `weather`
 - Wichtige Standard-Entities: Water heating, current water flow, current power
@@ -36,7 +36,7 @@ nach:
 Ressource in Home Assistant:
 
 ```yaml
-url: /local/dhe-connect-card/dhe-connect-card.js?v=5
+url: /local/dhe-connect-card/dhe-connect-card.js?v=7
 type: module
 ```
 

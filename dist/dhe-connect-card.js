@@ -1,5 +1,5 @@
 // src/dhe-connect-card.js
-var CARD_VERSION = "0.4.2";
+var CARD_VERSION = "0.4.3";
 var CARD_TYPE = "dhe-connect-card";
 var CARD_TEST_TYPE = "dhe-connect-card-v042";
 var INTEGRATION_DOMAIN = "stiebel_dhe_connect";
@@ -31,8 +31,8 @@ var ENTITY_DEFINITIONS = {
     icon: "mdi:water-thermometer",
     label: "Wasser",
     configKeys: ["climate_entity"],
-    objectIds: ["{p}_water_heating", "{p}_wasser_heating", "{p}_wassererwarmung"],
-    terms: ["water heating", "wasser", "warmwasser"]
+    objectIds: ["{p}_setpoint", "{p}_water_heating", "{p}_wasser_heating", "{p}_wassererwarmung"],
+    terms: ["setpoint", "water heating", "durchlauferhitzer", "warmwasser"]
   },
   water_flow: {
     domain: "sensor",
@@ -40,7 +40,9 @@ var ENTITY_DEFINITIONS = {
     label: "Durchfluss",
     configKeys: ["water_flow_entity"],
     objectIds: ["{p}_current_water_flow", "{p}_water_flow", "{p}_durchfluss"],
-    terms: ["current water flow", "water flow", "durchfluss"]
+    terms: ["current water flow", "water flow", "durchfluss"],
+    deviceClasses: ["volume_flow_rate"],
+    units: ["L/min", "l/min"]
   },
   power: {
     domain: "sensor",
@@ -48,7 +50,9 @@ var ENTITY_DEFINITIONS = {
     label: "Leistung",
     configKeys: ["power_entity"],
     objectIds: ["{p}_current_power_consumption", "{p}_power", "{p}_leistung"],
-    terms: ["current power", "power consumption", "leistung"]
+    terms: ["current power", "power consumption", "leistung"],
+    deviceClasses: ["power"],
+    units: ["kW", "W"]
   },
   inlet_temperature: {
     domain: "sensor",
@@ -56,7 +60,9 @@ var ENTITY_DEFINITIONS = {
     label: "Zulauf",
     configKeys: ["inlet_temperature_entity"],
     objectIds: ["{p}_inlet_temperature", "{p}_internal_temperature_1", "{p}_zulauf_temperatur"],
-    terms: ["inlet temperature", "internal temperature 1", "zulauf"]
+    terms: ["inlet temperature", "internal temperature 1", "zulauf"],
+    deviceClasses: ["temperature"],
+    units: ["C", "\xB0C"]
   },
   outlet_temperature: {
     domain: "sensor",
@@ -64,7 +70,9 @@ var ENTITY_DEFINITIONS = {
     label: "Auslauf",
     configKeys: ["outlet_temperature_entity"],
     objectIds: ["{p}_outlet_temperature", "{p}_internal_temperature_2", "{p}_auslauf_temperatur"],
-    terms: ["outlet temperature", "internal temperature 2", "auslauf"]
+    terms: ["outlet temperature", "internal temperature 2", "auslauf"],
+    deviceClasses: ["temperature"],
+    units: ["C", "\xB0C"]
   },
   connection_state: {
     domain: "sensor",
@@ -79,14 +87,14 @@ var ENTITY_DEFINITIONS = {
     icon: "mdi:alert-octagon-outline",
     label: "Status",
     configKeys: ["status_entity", "temperature_error_status_entity"],
-    objectIds: ["{p}_error_status", "{p}_temperature_error_status", "{p}_status"],
-    terms: ["error status", "temperature error", "status"]
+    objectIds: ["{p}_error_status", "{p}_temperature_error_status", "{p}_device_status", "{p}_status"],
+    terms: ["error status", "temperature error", "device status", "status"]
   },
   reconnect_count: {
     domain: "sensor",
     icon: "mdi:restart",
     label: "Reconnects",
-    objectIds: ["{p}_reconnects", "{p}_reconnect_count"],
+    objectIds: ["{p}_reconnect_count", "{p}_reconnects"],
     terms: ["reconnects", "reconnect count"]
   },
   last_reconnect_reason: {
@@ -116,29 +124,29 @@ var ENTITY_DEFINITIONS = {
     icon: "mdi:bathtub",
     label: "Wanne",
     configKeys: ["bath_fill_entity"],
-    objectIds: ["{p}_bath_fill", "{p}_wanne"],
+    objectIds: ["{p}_bath_fill_active", "{p}_bath_fill", "{p}_wanne"],
     terms: ["bath fill", "wanne"]
   },
   maximum_active: {
     domain: "switch",
     icon: "mdi:thermometer-check",
-    label: "Limit",
+    label: "Kindersich.",
     configKeys: ["maximum_active_entity"],
-    objectIds: ["{p}_maximum_temperature_limit", "{p}_maximum_active", "{p}_maximaltemperatur_limit"],
-    terms: ["maximum temperature limit", "maximum active", "limit"]
+    objectIds: ["{p}_child_safety_active", "{p}_maximum_temperature_limit", "{p}_maximum_active", "{p}_maximaltemperatur_limit"],
+    terms: ["child safety active", "kindersicherung", "maximum temperature limit", "limit"]
   },
   brush_timer_activation: {
     domain: "switch",
     icon: "mdi:toothbrush",
     label: "Zahnputzen",
-    objectIds: ["{p}_brush_timer", "{p}_brush_timer_activation", "{p}_zahnputz_timer"],
+    objectIds: ["{p}_brush_timer_active", "{p}_brush_timer", "{p}_brush_timer_activation", "{p}_zahnputz_timer"],
     terms: ["brush timer", "zahnputz"]
   },
   shower_timer_activation: {
     domain: "switch",
     icon: "mdi:shower-head",
     label: "Dusche",
-    objectIds: ["{p}_shower_timer", "{p}_shower_timer_activation", "{p}_duschtimer"],
+    objectIds: ["{p}_shower_timer_active", "{p}_shower_timer", "{p}_shower_timer_activation", "{p}_duschtimer"],
     terms: ["shower timer", "dusche"]
   },
   wellness_cold_prevention: {
@@ -152,21 +160,21 @@ var ENTITY_DEFINITIONS = {
     domain: "switch",
     icon: "mdi:snowflake-thermometer",
     label: "Winter",
-    objectIds: ["{p}_winter_refresh"],
+    objectIds: ["{p}_wellness_winter_refresh", "{p}_winter_refresh"],
     terms: ["winter refresh"]
   },
   summer_fitness: {
     domain: "switch",
     icon: "mdi:weather-sunny",
     label: "Sommer",
-    objectIds: ["{p}_summer_fitness"],
+    objectIds: ["{p}_wellness_summer_fitness", "{p}_summer_fitness"],
     terms: ["summer fitness"]
   },
   circulation_support: {
     domain: "switch",
     icon: "mdi:heart-pulse",
     label: "Kreislauf",
-    objectIds: ["{p}_circulation_support"],
+    objectIds: ["{p}_wellness_circulation_support", "{p}_circulation_support"],
     terms: ["circulation support", "kreislauf"]
   },
   bath_fill_target_volume: {
@@ -175,57 +183,69 @@ var ENTITY_DEFINITIONS = {
     label: "Wannenmenge",
     configKeys: ["bath_fill_target_volume_entity"],
     objectIds: ["{p}_bath_fill_target_volume", "{p}_wannenmenge"],
-    terms: ["bath fill target volume", "wannenmenge"]
+    terms: ["bath fill target volume", "wannenmenge"],
+    deviceClasses: ["volume"],
+    units: ["L", "l"]
   },
   bath_fill_remaining_volume: {
     domain: "sensor",
     icon: "mdi:bathtub",
     label: "Wanne Rest",
     configKeys: ["bath_fill_remaining_entity"],
-    objectIds: ["{p}_bath_fill_remaining", "{p}_bath_fill_remaining_volume"],
-    terms: ["bath fill remaining", "wanne verbleibend"]
+    objectIds: ["{p}_bath_fill_remaining_volume", "{p}_bath_fill_remaining"],
+    terms: ["bath fill remaining", "wanne verbleibend"],
+    deviceClasses: ["water"],
+    units: ["L", "l"]
   },
   maximum_temperature: {
     domain: "number",
     icon: "mdi:thermometer-high",
-    label: "Maximaltemp.",
-    objectIds: ["{p}_maximum_temperature"],
-    terms: ["maximum temperature", "maximaltemp"]
+    label: "Kindersich. Temp.",
+    objectIds: ["{p}_child_safety_temperature_limit", "{p}_maximum_temperature"],
+    terms: ["child safety temperature limit", "kindersicherung temperatur", "maximum temperature", "maximaltemp"],
+    deviceClasses: ["temperature"],
+    units: ["C", "\xB0C"]
   },
   eco_flow_limit: {
     domain: "number",
     icon: "mdi:water-pump",
     label: "Eco-Limit",
     objectIds: ["{p}_eco_flow_limit"],
-    terms: ["eco flow limit"]
+    terms: ["eco flow limit"],
+    deviceClasses: ["volume_flow_rate"],
+    units: ["L/min", "l/min"]
   },
   brush_timer_duration: {
     domain: "number",
     icon: "mdi:toothbrush",
     label: "Zahnputzen Dauer",
     objectIds: ["{p}_brush_timer_duration"],
-    terms: ["brush timer duration"]
+    terms: ["brush timer duration"],
+    units: ["s", "sec", "seconds"]
   },
   shower_timer_duration: {
     domain: "number",
     icon: "mdi:timer-edit",
     label: "Dusche Dauer",
     objectIds: ["{p}_shower_timer_duration"],
-    terms: ["shower timer duration"]
+    terms: ["shower timer duration"],
+    units: ["s", "sec", "seconds"]
   },
   brush_timer_remaining: {
     domain: "sensor",
     icon: "mdi:toothbrush",
     label: "Zahnputz-Rest",
     objectIds: ["{p}_brush_timer_remaining"],
-    terms: ["brush timer remaining"]
+    terms: ["brush timer remaining"],
+    units: ["s", "sec", "seconds"]
   },
   shower_timer_remaining: {
     domain: "sensor",
     icon: "mdi:timer-sand",
     label: "Dusch-Rest",
     objectIds: ["{p}_shower_timer_remaining"],
-    terms: ["shower timer remaining"]
+    terms: ["shower timer remaining"],
+    units: ["s", "sec", "seconds"]
   },
   reset_brush_timer: {
     domain: "button",
@@ -274,27 +294,29 @@ var ENTITY_DEFINITIONS = {
     icon: "mdi:water",
     label: "Wasser Woche",
     objectIds: ["{p}_water_consumption_week"],
-    terms: ["water consumption week"]
+    terms: ["water consumption week"],
+    deviceClasses: ["water"]
   },
   energy_consumption_week: {
     domain: "sensor",
     icon: "mdi:lightning-bolt",
     label: "Energie Woche",
     objectIds: ["{p}_energy_consumption_week"],
-    terms: ["energy consumption week"]
+    terms: ["energy consumption week"],
+    deviceClasses: ["energy"]
   },
   saving_monitor_possible_value: {
     domain: "sensor",
     icon: "mdi:cash-plus",
     label: "Moegl. Sparen",
-    objectIds: ["{p}_saving_monitor_possible_cost_saving", "{p}_saving_monitor_possible_value"],
+    objectIds: ["{p}_saving_monitor_possible_cost", "{p}_saving_monitor_possible_cost_saving", "{p}_saving_monitor_possible_value"],
     terms: ["saving monitor possible cost", "possible cost saving"]
   },
   saving_monitor_real_value: {
     domain: "sensor",
     icon: "mdi:cash-check",
     label: "Real gespart",
-    objectIds: ["{p}_saving_monitor_real_cost_saving", "{p}_saving_monitor_real_value"],
+    objectIds: ["{p}_saving_monitor_real_cost", "{p}_saving_monitor_real_cost_saving", "{p}_saving_monitor_real_value"],
     terms: ["saving monitor real cost", "real cost saving"]
   },
   radio: {
@@ -353,7 +375,7 @@ var FIELD_LABELS = {
   status_entity: "Fehlerstatus",
   eco_mode_entity: "Eco-Schalter",
   bath_fill_entity: "Wannenfuellung",
-  maximum_active_entity: "Maximaltemperatur-Limit",
+  maximum_active_entity: "Kindersicherung",
   bath_fill_target_volume_entity: "Wannen-Zielmenge",
   bath_fill_remaining_entity: "Wanne verbleibend",
   radio_entity: "Radio",
@@ -890,24 +912,49 @@ var DheConnectCard = class extends HTMLElement {
     return null;
   }
   _candidateIds(def) {
+    return this._candidateObjectIds(def).map((objectId) => `${def.domain}.${objectId}`);
+  }
+  _candidateObjectIds(def) {
     const prefix = this._prefix();
-    return (def.objectIds || []).map((objectId) => `${def.domain}.${objectId.replaceAll("{p}", prefix)}`);
+    return (def.objectIds || []).map((objectId) => objectId.replaceAll("{p}", prefix));
   }
   _discoverEntity(def) {
     const prefix = this._prefix();
+    const expectedObjectIds = this._candidateObjectIds(def);
+    const expectedObjectIdSet = new Set(expectedObjectIds);
+    const expectedSuffixes = new Set(expectedObjectIds.map((objectId) => objectId.startsWith(`${prefix}_`) ? objectId.slice(prefix.length + 1) : objectId));
     const entries = Object.entries(this._hass.states).filter(([entityId]) => entityId.startsWith(`${def.domain}.`));
     const scored = entries.map(([entityId, stateObj]) => {
       const objectId = entityId.slice(def.domain.length + 1);
       const name = stateObj?.attributes?.friendly_name || "";
       const haystack = normalizeText(`${objectId} ${name}`);
+      const objectIdNormalized = normalizeText(objectId);
       let score = 0;
-      if (objectId.startsWith(`${prefix}_`)) score += 20;
-      if (objectId.includes(prefix)) score += 8;
-      if (haystack.includes("dhe")) score += 8;
-      if ((def.terms || []).some((term) => termMatches(haystack, term))) score += 18;
-      if (!isUnavailableState(stateObj)) score += 3;
+      let strongMatch = false;
+      if (expectedObjectIdSet.has(objectId)) {
+        strongMatch = true;
+        score += 100;
+      }
+      for (const suffix of expectedSuffixes) {
+        const normalizedSuffix = normalizeText(suffix);
+        if (objectIdNormalized === normalizedSuffix || objectIdNormalized.endsWith(`_${normalizedSuffix}`)) {
+          strongMatch = true;
+          score += 70;
+          break;
+        }
+      }
+      if ((def.terms || []).some((term) => termMatches(haystack, term))) {
+        strongMatch = true;
+        score += 45;
+      }
+      if (!strongMatch) return { entityId, stateObj, score: 0 };
+      score += entityHintScore(def, stateObj);
+      if (objectId.startsWith(`${prefix}_`)) score += 8;
+      if (objectId.includes(prefix)) score += 3;
+      if (haystack.includes("dhe")) score += 2;
+      if (!isUnavailableState(stateObj)) score += 1;
       return { entityId, stateObj, score };
-    }).filter((item) => item.score >= 18).sort((a, b) => b.score - a.score);
+    }).filter((item) => item.score >= 45).sort((a, b) => b.score - a.score);
     const best = scored[0];
     if (!best) return null;
     return {
@@ -1540,6 +1587,30 @@ var DheConnectCardEditor = class extends HTMLElement {
     }
   }
 };
+function entityHintScore(def, stateObj) {
+  if (!stateObj?.attributes) return 0;
+  let score = 0;
+  const deviceClass = normalizeText(stateObj.attributes.device_class);
+  const unit = normalizeUnit(stateObj.attributes.unit_of_measurement);
+  if (def.deviceClasses?.length && deviceClass) {
+    if (def.deviceClasses.some((expected) => normalizeText(expected) === deviceClass)) {
+      score += 14;
+    } else {
+      score -= 35;
+    }
+  }
+  if (def.units?.length && unit) {
+    if (def.units.some((expected) => normalizeUnit(expected) === unit)) {
+      score += 10;
+    } else {
+      score -= 30;
+    }
+  }
+  return score;
+}
+function normalizeUnit(value) {
+  return normalizeText(value).replaceAll(" ", "").replaceAll("\xB0", "").replace("liters", "l").replace("liter", "l").replace("seconds", "s").replace("second", "s").replace("sec", "s");
+}
 function termMatches(haystack, term) {
   return normalizeText(term).split(/\s+/).filter(Boolean).every((part) => haystack.includes(part));
 }
