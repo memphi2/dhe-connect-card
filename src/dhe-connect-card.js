@@ -1,4 +1,4 @@
-const CARD_VERSION = "0.4.3";
+const CARD_VERSION = "0.4.4";
 const CARD_TYPE = "dhe-connect-card";
 const CARD_TEST_TYPE = "dhe-connect-card-v042";
 const INTEGRATION_DOMAIN = "stiebel_dhe_connect";
@@ -1766,6 +1766,7 @@ function findPrefixFromHass(hass) {
   return climateId
     .replace(/^climate\./, "")
     .replace(/_water_heating$/, "")
+    .replace(/_wasser_heating$/, "")
     .replace(/_wassererwarmung$/, "");
 }
 
