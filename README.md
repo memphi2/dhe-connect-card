@@ -5,7 +5,8 @@ Eine Lovelace Custom Card fuer die Home-Assistant-Integration
 
 Die Karte ist fuer die aktuelle Integration `stiebel_dhe_connect` gebaut. Sie
 nutzt den nativen Home-Assistant-Formular-Editor ueber `getConfigForm()` und
-kommt ohne separates Editor-Webcomponent aus.
+bringt zusaetzlich einen kompatiblen `getConfigElement()`-Wrapper fuer
+Home-Assistant-Versionen mit altem Editor-Pfad mit.
 
 ## Stand der Integration
 
@@ -35,7 +36,7 @@ nach:
 Ressource in Home Assistant:
 
 ```yaml
-url: /local/dhe-connect-card/dhe-connect-card.js?v=1
+url: /local/dhe-connect-card/dhe-connect-card.js?v=4
 type: module
 ```
 

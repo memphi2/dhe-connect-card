@@ -1,4 +1,4 @@
-const CARD_VERSION = "0.4.0";
+const CARD_VERSION = "0.4.1";
 const INTEGRATION_DOMAIN = "stiebel_dhe_connect";
 
 const DEFAULT_CONFIG = {
@@ -413,6 +413,15 @@ const entitySelector = (name, domain) => ({
   },
 });
 
+const migrateConfig = (config) => {
+  const next = { ...(config || {}) };
+  if (!next.entity_prefix && next.device_prefix) {
+    next.entity_prefix = slug(next.device_prefix);
+  }
+  delete next.device_prefix;
+  return next;
+};
+
 class DheConnectCard extends HTMLElement {
   constructor() {
     super();
@@ -458,6 +467,10 @@ class DheConnectCard extends HTMLElement {
       temperature_step: 0.5,
       memory_slots: 2,
     };
+  }
+
+  static getConfigElement() {
+    return document.createElement("dhe-connect-card-form-editor");
   }
 
   static getConfigForm() {
@@ -1562,6 +1575,82 @@ class DheConnectCard extends HTMLElement {
   }
 }
 
+class DheConnectCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._handleValueChanged = this._handleValueChanged.bind(this);
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    if (this._form) {
+      this._form.hass = hass;
+      return;
+    }
+    this._render();
+  }
+
+  setConfig(config) {
+    this._config = migrateConfig(config);
+    this._render();
+  }
+
+  _render() {
+    if (!this.shadowRoot || !this._config) return;
+
+    const formConfig = DheConnectCard.getConfigForm();
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host {
+          display: block;
+        }
+
+        ha-form {
+          display: block;
+        }
+
+        .error {
+          color: var(--error-color);
+          font-size: 12px;
+          margin-top: 8px;
+        }
+      </style>
+      <ha-form></ha-form>
+      ${this._error ? `<div class="error">${html(this._error)}</div>` : ""}
+    `;
+
+    const form = this.shadowRoot.querySelector("ha-form");
+    this._form = form;
+    form.hass = this._hass;
+    form.data = this._config;
+    form.schema = formConfig.schema;
+    form.computeLabel = formConfig.computeLabel;
+    form.computeHelper = formConfig.computeHelper;
+    form.addEventListener("value-changed", this._handleValueChanged);
+  }
+
+  _handleValueChanged(event) {
+    event.stopPropagation();
+    const formConfig = DheConnectCard.getConfigForm();
+    const config = migrateConfig({ ...this._config, ...(event.detail?.value || {}) });
+
+    try {
+      formConfig.assertConfig?.(config);
+      this._error = "";
+      this._config = config;
+      this.dispatchEvent(new CustomEvent("config-changed", {
+        bubbles: true,
+        composed: true,
+        detail: { config },
+      }));
+    } catch (err) {
+      this._error = err?.message || String(err);
+      this._render();
+    }
+  }
+}
+
 function termMatches(haystack, term) {
   return normalizeText(term)
     .split(/\s+/)
@@ -1584,6 +1673,10 @@ function findPrefixFromHass(hass) {
     .replace(/^climate\./, "")
     .replace(/_water_heating$/, "")
     .replace(/_wassererwarmung$/, "");
+}
+
+if (!customElements.get("dhe-connect-card-form-editor")) {
+  customElements.define("dhe-connect-card-form-editor", DheConnectCardEditor);
 }
 
 if (!customElements.get("dhe-connect-card")) {
