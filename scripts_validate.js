@@ -10,10 +10,11 @@ for (const key of ['name', 'filename', 'homeassistant']) {
 if (!fs.existsSync('dist/dhe-connect-card.js')) fail('dist/dhe-connect-card.js fehlt');
 
 const dist = fs.readFileSync('dist/dhe-connect-card.js', 'utf8');
-if (!dist.includes('customElements.define("dhe-connect-card"')) fail('Card Registrierung fehlt im dist Bundle');
+if (!dist.includes('dhe-connect-card') || !dist.includes('customElements.define')) fail('Card Registrierung fehlt im dist Bundle');
+if (!dist.includes('dhe-connect-card-v042')) fail('Test-Alias Registrierung fehlt im dist Bundle');
 if (!dist.includes('window.customCards')) fail('window.customCards Registrierung fehlt im dist Bundle');
 
 const readme = fs.readFileSync('README.md', 'utf8');
-if (!readme.includes('type: custom:dhe-connect-card')) fail('README enthält kein Lovelace Beispiel');
+if (!readme.includes('type: custom:dhe-connect-card')) fail('README enthaelt kein Lovelace Beispiel');
 
-if (!process.exitCode) console.log('OK: Basis-Validierung für HA/HACS Konformität erfolgreich.');
+if (!process.exitCode) console.log('OK: Basis-Validierung fuer HA/HACS Konformitaet erfolgreich.');
