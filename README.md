@@ -19,28 +19,53 @@ Geprueft gegen `memphi2/ha-dhe-connect` auf `main`:
 - Wichtige Standard-Entities: Water heating, current water flow, current power
   consumption, Eco mode, bath fill, radio und weather
 
-## Installation zum Testen
+## Installation
 
-Kopiere nur das gebaute Bundle nach Home Assistant:
+### HACS
+
+Wenn die Karte ueber HACS installiert ist, liegt die Datei physisch hier:
+
+```text
+/config/www/community/dhe-connect-card/dhe-connect-card.js
+```
+
+Die Ressource in Home Assistant muss dann so lauten:
+
+```yaml
+url: /hacsfiles/dhe-connect-card/dhe-connect-card.js?v=10
+type: module
+```
+
+### Manueller Test
+
+Kopiere nur das gebaute Bundle:
 
 ```text
 dist/dhe-connect-card.js
 ```
 
-nach:
+nach einem dieser Ziele:
 
 ```text
 /config/www/dhe-connect-card/dhe-connect-card.js
+/config/www/community/dhe-connect-card/dhe-connect-card.js
 ```
 
-Ressource in Home Assistant:
+Passende Ressource in Home Assistant:
 
 ```yaml
-url: /local/dhe-connect-card/dhe-connect-card.js?v=9
+url: /local/dhe-connect-card/dhe-connect-card.js?v=10
 type: module
 ```
 
-Bei jeder neuen Kopie die Version hochzaehlen, z.B. `?v=2`.
+oder:
+
+```yaml
+url: /local/community/dhe-connect-card/dhe-connect-card.js?v=10
+type: module
+```
+
+Bei jeder neuen Kopie die Version hochzaehlen, z.B. `?v=11`.
 
 Wenn Home Assistant trotz Cache-Buster noch den alten Editor fuer
 `custom:dhe-connect-card` nutzt, ist sehr wahrscheinlich noch eine alte
